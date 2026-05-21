@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+
+# Build artifacts
+dist/
+build/
+
+# Data / models / logs
+data/
+models/
+logs/
+*.log
+*.sqlite
+*.db
+
+# Docker volumes
+.docker-data/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Outputs from ingestion / generation
+outputs/
+artifacts/
+*.pptx
+*.pdf
+!tests/fixtures/
+
+# uv
+uv.lock
+
+# Documents
+docs/
+
+# Markdown
+*.md
+
+# Docker volumes
+postgres-data/
+model-cache/

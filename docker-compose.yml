@@ -1,0 +1,59 @@
+# Local dev stack — Postgres+pgvector, BGE-M3 embedding, BGE reranker, Langfuse
+# Note: TEI images require x86_64; on Mac M-series may need different image.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: asag_postgres
+    environment:
+      POSTGRES_USER: asag
+      POSTGRES_PASSWORD: asag_local
+      POSTGRES_DB: asag
+    ports:
+      - "5433:5432"
+    volumes:
+      - asag_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asag -d asag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tei-embeddings:
+    # BGE-M3 (1024d, dense+sparse, 100+ langs)
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: asag_tei_embed
+    command: ["--model-id", "BAAI/bge-m3", "--port", "80"]
+    ports:
+      - "8080:80"
+    volumes:
+      - asag_tei_cache:/data
+    environment:
+      HF_HOME: /data
+
+  tei-reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: asag_tei_rerank
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--port", "80"]
+    ports:
+      - "8081:80"
+    volumes:
+      - asag_tei_cache:/data
+    environment:
+      HF_HOME: /data
+
+  # Langfuse (optional, bật từ Phase 9)
+  # langfuse:
+  #   image: langfuse/langfuse:latest
+  #   ports: ["3000:3000"]
+  #   environment:
+  #     DATABASE_URL: postgresql://asag:asag_local@postgres:5432/asag
+  #     NEXTAUTH_SECRET: changeme
+  #     SALT: changeme
+  #     NEXTAUTH_URL: http://localhost:3000
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+volumes:
+  asag_pg_data:
+  asag_tei_cache:

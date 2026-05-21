@@ -1,0 +1,28 @@
+# .pre-commit-config.yml
+# Hook auto run when "git commit"
+# If hook fail -> prevent commit
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.0
+    hooks:
+      # ruff: check linting rules (E, F, I, UP)
+      - id: ruff
+        args: [--fix]  # --fix: auto fix
+      # ruff-format: format code
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Remove whitespace
+      - id: trailing-whitespace
+      # End file with newline
+      - id: end-of-file-fixer
+      # Preevent commit large file (> 5MB)
+      - id: check-added-large-files
+        args: [--maxkb=5120]
+      # Prevent commit .env
+      - id: detect-private-key
+      # Validate YAML syntax (docker-compose.yml, .pre-commit-config.yaml)
+      - id: check-yaml
