@@ -68,3 +68,6 @@ docs/
 # Docker volumes
 postgres-data/
 model-cache/
+
+# Claude
+.claude

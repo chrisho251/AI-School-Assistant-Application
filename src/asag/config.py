@@ -7,6 +7,10 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class ConfigError(RuntimeError):
+    """Raised when a required setting is missing or invalid."""
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -42,6 +46,15 @@ class Settings(BaseSettings):
     # App
     asag_env: str = "development"
     asag_log_level: str = "INFO"
+
+    def require_db_url(self) -> str:
+        """Return SUPABASE_DB_URL or raise with a clear message"""
+        if not self.supabase_db_url:
+            raise ConfigError(
+                "SUPABASE_DB_URL is empty. Copy .env.example to .env and paste "
+                "the Session pooler URL from Supabase → Project Settings → Database."
+            )
+        return self.supabase_db_url
 
 
 @lru_cache
