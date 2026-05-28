@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+:root { color-scheme: light; }
+body { @apply font-sans antialiased; }
+.bg-asag-gradient {
+  background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #3b82f6 100%);
+}
