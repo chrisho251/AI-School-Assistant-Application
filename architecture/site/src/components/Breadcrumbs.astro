@@ -1,0 +1,91 @@
+---
+/**
+ * Breadcrumbs — auto-generated from Astro.url.pathname.
+ * Reads the BASE_URL prefix and strips it before parsing segments.
+ *
+ * Optional prop `overrideLastLabel` lets leaf pages supply a human-readable
+ * title instead of the auto-humanised segment string (e.g. a component slug).
+ */
+
+interface Props {
+  overrideLastLabel?: string;
+}
+
+const { overrideLastLabel } = Astro.props;
+
+const base = import.meta.env.BASE_URL;           // e.g. "/asag/"
+const basePath = base.replace(/\/$/, "");         // "/asag"
+const b = base.endsWith("/") ? base : base + "/";
+
+const { pathname } = Astro.url;
+
+// Strip base prefix so we work with the relative path only.
+let relPath = pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname;
+relPath = relPath.replace(/^\/|\/$/g, "");        // trim leading/trailing slashes
+
+const segments = relPath.split("/").filter(Boolean);
+
+// Human-readable labels for known path segments.
+const LABELS: Record<string, string> = {
+  workflows: "Workflows",
+  architecture: "Architecture",
+  context: "Context",
+  containers: "Containers",
+  pipelines: "Pipelines",
+  ingestion: "Ingestion",
+  retrieval: "Retrieval",
+  assessment: "Assessment",
+  "slide-generation": "Slide Generation",
+  components: "Components",
+  "data-model": "Data Model",
+  reference: "Reference",
+  glossary: "Glossary",
+  "security-model": "Security Model",
+  "non-functional-requirements": "Non-functional Req.",
+  "operational-runbook": "Runbook",
+  features: "Features",
+  diagrams: "Diagrams",
+  "high-level": "High-level",
+};
+
+function humanise(slug: string): string {
+  return slug
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Build crumb list.
+const crumbs: { label: string; href: string }[] = [{ label: "Home", href: b }];
+let cumulativePath = basePath;
+for (let i = 0; i < segments.length; i++) {
+  const seg = segments[i];
+  cumulativePath += "/" + seg;
+  const isLast = i === segments.length - 1;
+  crumbs.push({
+    label: isLast && overrideLastLabel
+      ? overrideLastLabel
+      : (LABELS[seg] ?? humanise(seg)),
+    href: cumulativePath + "/",
+  });
+}
+
+// Only render when we're deeper than the home page.
+const show = crumbs.length > 1;
+---
+
+{show && (
+  <nav aria-label="Breadcrumb" class="mb-6">
+    <ol class="flex flex-wrap items-center gap-1 text-sm text-slate-500">
+      {crumbs.map((crumb, i) => (
+        <li class="flex items-center gap-1">
+          {i > 0 && <span class="text-slate-300 select-none">/</span>}
+          {i < crumbs.length - 1 ? (
+            <a href={crumb.href} class="hover:text-indigo-600 transition">{crumb.label}</a>
+          ) : (
+            <span class="text-slate-700 font-medium">{crumb.label}</span>
+          )}
+        </li>
+      ))}
+    </ol>
+  </nav>
+)}

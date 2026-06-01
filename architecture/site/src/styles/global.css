@@ -2,6 +2,41 @@
 
 :root { color-scheme: light; }
 body { @apply font-sans antialiased; }
+
+/* Legacy saturated gradient — no longer used in diagrams. */
 .bg-asag-gradient {
   background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #3b82f6 100%);
 }
+
+/* Neutral diagram frame — v3 style (slate tones, low saturation). */
+.bg-diagram-frame {
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+/* Minimal typography for MDX content rendered inside ComponentLayout */
+.md-content h1 { @apply text-3xl font-bold text-slate-800 mb-4 mt-2; }
+.md-content h2 { @apply text-xl font-semibold text-slate-800 mt-10 mb-3 pb-2 border-b border-slate-200; }
+.md-content h3 { @apply text-base font-semibold text-slate-700 mt-6 mb-2; }
+.md-content p  { @apply text-slate-600 leading-relaxed mb-4; }
+.md-content ul { @apply list-disc list-outside pl-5 text-slate-600 mb-4 space-y-1; }
+.md-content ol { @apply list-decimal list-outside pl-5 text-slate-600 mb-4 space-y-1; }
+.md-content li { @apply leading-relaxed; }
+.md-content blockquote {
+  @apply border-l-4 border-indigo-200 pl-4 text-slate-500 italic my-4 text-sm;
+}
+.md-content table { @apply w-full text-sm border-collapse mb-6; }
+.md-content thead { background-color: #f8fafc; }
+.md-content th {
+  @apply text-left font-semibold text-slate-600 border-b-2 border-slate-200 pb-2 pr-4 py-2;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.md-content td { @apply text-slate-600 border-b border-slate-100 py-2.5 pr-4 align-top; }
+.md-content tr:last-child td { @apply border-b-0; }
+.md-content code { @apply bg-slate-100 text-slate-800 rounded px-1.5 py-0.5 text-xs font-mono; }
+.md-content pre  { @apply bg-slate-900 text-slate-100 rounded-xl p-4 overflow-x-auto mb-4 text-sm; }
+.md-content pre code { @apply bg-transparent text-inherit p-0; }
+.md-content a    { @apply text-indigo-600 hover:text-indigo-800 hover:underline transition; }
+.md-content strong { @apply font-semibold text-slate-800; }
+.md-content hr   { @apply border-slate-200 my-8; }

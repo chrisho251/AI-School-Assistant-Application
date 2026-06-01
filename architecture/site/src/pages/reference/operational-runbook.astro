@@ -1,0 +1,310 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import PrevNext from "../../components/PrevNext.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+---
+
+<BaseLayout
+  title="Operational Runbook"
+  description="Per-pipeline failure modes, detection signals, and recovery procedures for ASAG."
+>
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Operational Runbook</h1>
+    <p class="text-slate-500 mb-8 leading-relaxed max-w-2xl">
+      The most operationally significant failure modes from the component pages, organised by
+      pipeline. Each table row is sourced from the component's full failure table — follow the
+      component links for the complete list.
+    </p>
+
+    <!-- ── 1. Ingestion pipeline ──────────────────────────────────────── -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4">1 — Ingestion pipeline</h2>
+      <div class="border border-slate-200 rounded-xl overflow-hidden mb-3">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Mode</th>
+              <th class="px-4 py-3 text-left">Detection</th>
+              <th class="px-4 py-3 text-left">Recovery</th>
+              <th class="px-4 py-3 text-left">Blast radius</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">TEI container OOM</td>
+              <td class="px-4 py-3 text-slate-500">Exit code 137; <code class="bg-slate-100 px-1 rounded text-xs">/health</code> → 503</td>
+              <td class="px-4 py-3 text-slate-500">Restart container; reduce <code class="bg-slate-100 px-1 rounded text-xs">MAX_BATCH_TOKENS</code></td>
+              <td class="px-4 py-3 text-slate-400">Embedding fails; ingestion queue backs up</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Docling parse failure</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">sources.ingestion_status = failed_at_parsing</code></td>
+              <td class="px-4 py-3 text-slate-500">Inngest retries up to 3×; teacher notified</td>
+              <td class="px-4 py-3 text-slate-400">Single source; other sources unaffected</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Inngest step quota exhausted</td>
+              <td class="px-4 py-3 text-slate-500">Inngest dashboard alert; events rejected</td>
+              <td class="px-4 py-3 text-slate-500">Upgrade Inngest plan or switch to arq (Redis queue)</td>
+              <td class="px-4 py-3 text-slate-400">Ingestion pauses until quota resets or plan upgraded</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Supabase Storage upload timeout</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">httpx.TimeoutException</code> after 120 s</td>
+              <td class="px-4 py-3 text-slate-500">Use multipart upload (boto3); or stream from browser directly to Storage</td>
+              <td class="px-4 py-3 text-slate-400">Single upload fails; teacher retries</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap gap-2 text-xs">
+        <span class="text-slate-400">Full failure tables:</span>
+        {[
+          ["TEI", "tei"],
+          ["BGE-M3", "bge-m3"],
+          ["Docling", "docling"],
+          ["Inngest", "inngest"],
+          ["Supabase Storage", "supabase-storage"],
+        ].map(([label, slug]) => (
+          <a href={`${b}components/${slug}`}
+             class="border border-slate-200 bg-white rounded-full px-3 py-0.5 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            {label} →
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── 2. Retrieval pipeline ──────────────────────────────────────── -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4">2 — Retrieval pipeline</h2>
+      <div class="border border-slate-200 rounded-xl overflow-hidden mb-3">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Mode</th>
+              <th class="px-4 py-3 text-left">Detection</th>
+              <th class="px-4 py-3 text-left">Recovery</th>
+              <th class="px-4 py-3 text-left">Blast radius</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">HNSW index corruption</td>
+              <td class="px-4 py-3 text-slate-500">Wrong results or errors; <code class="bg-slate-100 px-1 rounded text-xs">pg_stat_user_indexes</code></td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">REINDEX INDEX CONCURRENTLY</code></td>
+              <td class="px-4 py-3 text-slate-400">Retrieval quality degrades until reindex completes</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">TEI reranker OOM / unavailable</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">/health</code> → 503</td>
+              <td class="px-4 py-3 text-slate-500">Fall back to RRF-only top-5 (skip rerank step)</td>
+              <td class="px-4 py-3 text-slate-400">Lower retrieval precision; Q&A still works</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">GIN index missing (FTS)</td>
+              <td class="px-4 py-3 text-slate-500">Sparse query latency jumps from 5 ms to 500 ms+</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">REINDEX INDEX CONCURRENTLY &lt;gin_index&gt;</code></td>
+              <td class="px-4 py-3 text-slate-400">Sparse branch slow; hybrid still works via dense-only</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">RLS policy misconfiguration</td>
+              <td class="px-4 py-3 text-slate-500">Users see cross-tenant chunks or 0 results</td>
+              <td class="px-4 py-3 text-slate-500">Audit <code class="bg-slate-100 px-1 rounded text-xs">pg_policies</code>; correct and re-enable RLS; roll back erroneous migration</td>
+              <td class="px-4 py-3 text-slate-400">Privacy breach or all queries return empty</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap gap-2 text-xs">
+        <span class="text-slate-400">Full failure tables:</span>
+        {[
+          ["pgvector", "pgvector"],
+          ["TEI Reranker", "bge-reranker"],
+          ["BM25 / FTS", "bm25-postgres-fts"],
+          ["Postgres RLS", "postgres-rls"],
+        ].map(([label, slug]) => (
+          <a href={`${b}components/${slug}`}
+             class="border border-slate-200 bg-white rounded-full px-3 py-0.5 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            {label} →
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── 3. Assessment pipeline ─────────────────────────────────────── -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4">3 — Assessment pipeline</h2>
+      <div class="border border-slate-200 rounded-xl overflow-hidden mb-3">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Mode</th>
+              <th class="px-4 py-3 text-left">Detection</th>
+              <th class="px-4 py-3 text-left">Recovery</th>
+              <th class="px-4 py-3 text-left">Blast radius</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">LLM judge returns malformed JSON</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">ValidationError</code> on <code class="bg-slate-100 px-1 rounded text-xs">GradeResult.model_validate_json()</code></td>
+              <td class="px-4 py-3 text-slate-500">Retry with stricter prompt; mark answer <code class="bg-slate-100 px-1 rounded text-xs">pending_review</code></td>
+              <td class="px-4 py-3 text-slate-400">Single answer; teacher manual review required</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">E2B sandbox timeout (infinite loop)</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">SandboxTimeoutError</code> after 30 s</td>
+              <td class="px-4 py-3 text-slate-500">Record <code class="bg-slate-100 px-1 rounded text-xs">test_result = "timeout"</code>; LLM judge receives timeout signal</td>
+              <td class="px-4 py-3 text-slate-400">Single code answer; normal grading flow continues</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">E2B API unreachable</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">httpx.ConnectError</code></td>
+              <td class="px-4 py-3 text-slate-500">Mark answer <code class="bg-slate-100 px-1 rounded text-xs">pending_sandbox</code>; retry with delay</td>
+              <td class="px-4 py-3 text-slate-400">Code questions not auto-graded; teacher reviews manually</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Lockdown event listener reset (Streamlit rerun)</td>
+              <td class="px-4 py-3 text-slate-500">JS component re-mounts on Streamlit page rerun</td>
+              <td class="px-4 py-3 text-slate-500">Use <code class="bg-slate-100 px-1 rounded text-xs">components.html(..., height=0)</code> consistently; avoid triggering reruns during exam</td>
+              <td class="px-4 py-3 text-slate-400">Brief gap in lockdown enforcement; attempt not cancelled</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap gap-2 text-xs">
+        <span class="text-slate-400">Full failure tables:</span>
+        {[
+          ["Groq Llama (judge)", "groq-llama"],
+          ["E2B Sandbox", "e2b-sandbox"],
+          ["Lockdown Component", "streamlit-lockdown-component"],
+          ["Gemini Flash (generator)", "gemini-flash"],
+        ].map(([label, slug]) => (
+          <a href={`${b}components/${slug}`}
+             class="border border-slate-200 bg-white rounded-full px-3 py-0.5 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            {label} →
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── 4. Slide generation pipeline ──────────────────────────────── -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4">4 — Slide generation pipeline</h2>
+      <div class="border border-slate-200 rounded-xl overflow-hidden mb-3">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Mode</th>
+              <th class="px-4 py-3 text-left">Detection</th>
+              <th class="px-4 py-3 text-left">Recovery</th>
+              <th class="px-4 py-3 text-left">Blast radius</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Gemini returns invalid JSON outline</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">JSONDecodeError</code> on outline parse</td>
+              <td class="px-4 py-3 text-slate-500">Retry with stricter prompt; fall back to 5-slide skeleton</td>
+              <td class="px-4 py-3 text-slate-400">Single deck generation fails; teacher retries</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Marp CLI not found on worker</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">FileNotFoundError</code> on subprocess call</td>
+              <td class="px-4 py-3 text-slate-500">Bundle Node + <code class="bg-slate-100 px-1 rounded text-xs">@marp-team/marp-cli</code> in the worker Docker image</td>
+              <td class="px-4 py-3 text-slate-400">All slide exports fail until fixed</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Supabase Storage quota exceeded</td>
+              <td class="px-4 py-3 text-slate-500">Storage API returns 413 on artifact PUT</td>
+              <td class="px-4 py-3 text-slate-500">Delete old artefacts; upgrade to Supabase Pro (100 GB)</td>
+              <td class="px-4 py-3 text-slate-400">Generated decks cannot be saved; retrieval + grading unaffected</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap gap-2 text-xs">
+        <span class="text-slate-400">Full failure tables:</span>
+        {[
+          ["Gemini Flash", "gemini-flash"],
+          ["Marp CLI", "marp"],
+          ["Supabase Storage", "supabase-storage"],
+          ["LiteLLM", "litellm"],
+        ].map(([label, slug]) => (
+          <a href={`${b}components/${slug}`}
+             class="border border-slate-200 bg-white rounded-full px-3 py-0.5 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            {label} →
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── Cross-cutting ──────────────────────────────────────────────── -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4">Cross-cutting failures</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        These failures affect all pipelines simultaneously.
+      </p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden mb-3">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Mode</th>
+              <th class="px-4 py-3 text-left">Detection</th>
+              <th class="px-4 py-3 text-left">Recovery</th>
+              <th class="px-4 py-3 text-left">Blast radius</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Supabase free tier project paused</td>
+              <td class="px-4 py-3 text-slate-500">All DB connections fail; HTTP 503 from Supabase API</td>
+              <td class="px-4 py-3 text-slate-500">Reactivate from dashboard; add keep-alive ping job</td>
+              <td class="px-4 py-3 text-slate-400">Full outage until reactivated (free tier pauses inactive projects)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">JWT secret rotation</td>
+              <td class="px-4 py-3 text-slate-500">All FastAPI requests return 401</td>
+              <td class="px-4 py-3 text-slate-500">Update <code class="bg-slate-100 px-1 rounded text-xs">SUPABASE_JWT_SECRET</code> in <code class="bg-slate-100 px-1 rounded text-xs">.env</code>; redeploy FastAPI</td>
+              <td class="px-4 py-3 text-slate-400">All users logged out simultaneously</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">Langfuse self-host container down</td>
+              <td class="px-4 py-3 text-slate-500">SDK <code class="bg-slate-100 px-1 rounded text-xs">ConnectionError</code> on batch flush</td>
+              <td class="px-4 py-3 text-slate-500">SDK buffers events; auto-flushes when service recovers</td>
+              <td class="px-4 py-3 text-slate-400">Observability data loss only — no functional user impact</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-700">psycopg connection pool exhausted</td>
+              <td class="px-4 py-3 text-slate-500"><code class="bg-slate-100 px-1 rounded text-xs">TooManyConnections</code> error</td>
+              <td class="px-4 py-3 text-slate-500">Increase <code class="bg-slate-100 px-1 rounded text-xs">max_size</code>; add PgBouncer (Supabase Pro includes it)</td>
+              <td class="px-4 py-3 text-slate-400">Write requests queue; slow requests time out</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap gap-2 text-xs">
+        <span class="text-slate-400">Full failure tables:</span>
+        {[
+          ["Supabase", "supabase"],
+          ["Supabase Auth", "supabase-auth"],
+          ["Langfuse", "langfuse"],
+          ["Postgres RLS", "postgres-rls"],
+        ].map(([label, slug]) => (
+          <a href={`${b}components/${slug}`}
+             class="border border-slate-200 bg-white rounded-full px-3 py-0.5 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            {label} →
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <PrevNext
+      prev={{ label: "Non-functional Req.", href: `${b}reference/non-functional-requirements` }}
+    />
+  </div>
+</BaseLayout>

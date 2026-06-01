@@ -1,0 +1,103 @@
+---
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+---
+
+<section class="bg-diagram-frame border-b border-slate-200 py-16 px-6">
+  <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+
+    <!-- Left: text + CTAs -->
+    <div>
+      <span class="inline-block bg-slate-100 text-slate-600 text-xs font-medium rounded-full px-3 py-1 mb-4 border border-slate-200">
+        AI School Assistant &amp; Grader
+      </span>
+      <h1 class="text-4xl font-bold text-slate-800 leading-tight mb-4">
+        The classroom workspace that teaches, tests, and grades
+      </h1>
+      <p class="text-slate-500 text-base leading-relaxed mb-8">
+        Teachers upload materials; students ask questions and receive cited answers.
+        The system generates quizzes, grades responses with an LLM judge, and keeps
+        teachers in control of every score before it reaches a student.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <a
+          href={`${b}architecture/context`}
+          class="inline-block bg-indigo-600 text-white font-semibold px-6 py-3 rounded-xl shadow hover:bg-indigo-700 transition text-center"
+        >
+          Explore Architecture
+        </a>
+        <a
+          href={`${b}components`}
+          class="inline-block bg-white text-slate-700 font-semibold px-6 py-3 rounded-xl border border-slate-300 hover:bg-slate-50 transition text-center"
+        >
+          Browse Components
+        </a>
+      </div>
+    </div>
+
+    <!-- Right: mini pipeline SVG (hidden on mobile) -->
+    <div class="hidden md:block">
+      <!--
+        5-node core pipeline: Teacher → Streamlit → FastAPI → { Postgres, Gemini }
+        ViewBox: 420 × 232
+        Clickable: Streamlit, FastAPI, Postgres, Gemini
+      -->
+      <svg
+        viewBox="0 0 420 232"
+        xmlns="http://www.w3.org/2000/svg"
+        class="w-full max-w-sm mx-auto"
+        aria-label="Core ASAG pipeline — Teacher through to Postgres and Gemini"
+      >
+        <defs>
+          <marker id="hero-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L7,3 z" fill="#64748b"/>
+          </marker>
+        </defs>
+
+        <!-- Arrows -->
+        <!-- Teacher → Streamlit -->
+        <line x1="210" y1="46" x2="210" y2="66" stroke="#64748b" stroke-width="1.5" marker-end="url(#hero-arrow)"/>
+        <!-- Streamlit → FastAPI -->
+        <line x1="210" y1="104" x2="210" y2="124" stroke="#64748b" stroke-width="1.5" marker-end="url(#hero-arrow)"/>
+        <!-- FastAPI → Postgres -->
+        <line x1="175" y1="160" x2="100" y2="182" stroke="#64748b" stroke-width="1.5" marker-end="url(#hero-arrow)"/>
+        <!-- FastAPI → Gemini -->
+        <line x1="245" y1="160" x2="320" y2="182" stroke="#64748b" stroke-width="1.5" marker-end="url(#hero-arrow)"/>
+
+        <!-- Teacher (non-clickable · amber) -->
+        <rect x="135" y="10" width="150" height="36" rx="8" fill="#fef9c3" stroke="#d97706" stroke-width="1.5"/>
+        <text x="210" y="33" text-anchor="middle" font-size="12" font-weight="600" fill="#92400e" font-family="sans-serif">Teacher</text>
+
+        <!-- Streamlit (clickable · teal) -->
+        <a href={`${b}components/streamlit`}>
+          <rect x="130" y="68" width="160" height="36" rx="8" fill="#f0fdfa" stroke="#0d9488" stroke-width="2" class="cursor-pointer"/>
+          <text x="210" y="85" text-anchor="middle" font-size="12" font-weight="700" fill="#134e4a" font-family="sans-serif">Streamlit UI</text>
+          <text x="210" y="97" text-anchor="middle" font-size="9" fill="#0f766e" font-family="sans-serif">Web interface · port 8501</text>
+        </a>
+
+        <!-- FastAPI (clickable · blue) -->
+        <a href={`${b}components/fastapi`}>
+          <rect x="130" y="124" width="160" height="36" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" class="cursor-pointer"/>
+          <text x="210" y="141" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a" font-family="sans-serif">FastAPI</text>
+          <text x="210" y="153" text-anchor="middle" font-size="9" fill="#1d4ed8" font-family="sans-serif">JWT verify · RLS context · routing</text>
+        </a>
+
+        <!-- Postgres + pgvector (clickable · amber/yellow) -->
+        <a href={`${b}components/pgvector`}>
+          <rect x="20" y="182" width="150" height="40" rx="8" fill="#fefce8" stroke="#ca8a04" stroke-width="2" class="cursor-pointer"/>
+          <text x="95" y="199" text-anchor="middle" font-size="11" font-weight="700" fill="#713f12" font-family="sans-serif">Postgres</text>
+          <text x="95" y="213" text-anchor="middle" font-size="9" fill="#92400e" font-family="sans-serif">pgvector + RLS</text>
+        </a>
+
+        <!-- Gemini Flash (clickable · violet) -->
+        <a href={`${b}components/gemini-flash`}>
+          <rect x="250" y="182" width="150" height="40" rx="8" fill="#faf5ff" stroke="#7c3aed" stroke-width="2" class="cursor-pointer"/>
+          <text x="325" y="199" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95" font-family="sans-serif">Gemini Flash</text>
+          <text x="325" y="213" text-anchor="middle" font-size="9" fill="#7c3aed" font-family="sans-serif">Generator LLM</text>
+        </a>
+      </svg>
+      <p class="text-center text-xs text-slate-400 mt-2">Click any node for component details</p>
+    </div>
+
+  </div>
+</section>

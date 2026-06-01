@@ -1,0 +1,52 @@
+---
+import Nav from "../components/Nav.astro";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const {
+  title,
+  description = "ASAG — AI School Assistant & Grader. An open architecture portfolio showing how a full-stack AI tutoring system is built.",
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+const ogImage = `${b}og-image.png`;
+
+// Feature flag — mirrors Nav.astro. Set to true to restore GitHub link.
+const SHOW_GITHUB = false;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href={`${b}favicon.svg`} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} · ASAG</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={`${title} · ASAG`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={`${title} · ASAG`} />
+    <meta name="twitter:description" content={description} />
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
+    <Nav />
+    <main class="flex-1">
+      <slot />
+    </main>
+    <footer class="border-t border-slate-200 py-6 text-center text-sm text-slate-500">
+      Built by Chris · ASAG Master project · 2026
+      {SHOW_GITHUB && (
+        <> · <a href="https://github.com/hoduyhoang250196" class="underline hover:text-slate-800 transition" target="_blank" rel="noopener noreferrer">GitHub ↗</a></>
+      )}
+    </footer>
+  </body>
+</html>

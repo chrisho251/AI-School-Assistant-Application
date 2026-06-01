@@ -1,0 +1,120 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import DiagramFrame from "../../components/DiagramFrame.astro";
+import Mermaid from "../../components/Mermaid.astro";
+import { getEntry, getCollection, render } from "astro:content";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+const entry = await getEntry("architecture", "assessment");
+const { Content } = await render(entry!);
+
+const components = await getCollection("components");
+const related = components.filter((c) => c.data.usedInPipeline.includes("assessment"));
+
+// Sub-pipeline A — Quiz generation
+const quizGenDiagram = `flowchart LR
+  Teacher["👩‍🏫 Teacher\\nscope + QuizConfig"]
+  Retrieve["Retrieval pipeline\\ntop-k chunks"]
+  Generate["Gemini Flash\\nstructured JSON output"]
+  Validate["Validate\\nsource_chunk_ids + grounding"]
+  Persist["Persist\\nstatus = draft"]
+  Review["Teacher edits\\n→ Publish"]
+
+  Teacher --> Retrieve
+  Retrieve --> Generate
+  Generate --> Validate
+  Validate --> Persist
+  Persist --> Review
+
+  click Generate href "${b}components/gemini-flash" "Open Gemini Flash page"
+  click Retrieve href "${b}diagrams/retrieval" "Open Retrieval pipeline"`;
+
+// Sub-pipeline B — Auto-grading
+const gradingDiagram = `flowchart LR
+  Submit["📝 Student submits"]
+  Route{"Question type"}
+  Det["Deterministic match\\nMCQ / Fill-in"]
+  Judge["Groq Llama 3.3 70B\\nLLM-as-Judge + rubric"]
+  Store["Persist\\nauto_score + auto_feedback"]
+  TeacherR["Teacher review\\n(sees cited chunks)"]
+  Finalise["✅ Finalise\\nfinal_score visible to student"]
+
+  Submit --> Route
+  Route -->|MCQ / Fill-in| Det
+  Route -->|Short / Essay / Code| Judge
+  Det --> Store
+  Judge --> Store
+  Store --> TeacherR
+  TeacherR --> Finalise
+
+  click Judge href "${b}components/groq-llama" "Open Groq Llama page"
+  click Store href "${b}components/pgvector" "Open pgvector page"`;
+---
+
+<BaseLayout
+  title="Assessment Pipeline"
+  description="How ASAG generates quizzes and auto-grades student answers — with a teacher-finalise gate and anti-bias rule."
+>
+  <div class="bg-diagram-frame py-12 px-6 border-b border-slate-200 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2">Assessment Pipeline</h1>
+    <p class="text-slate-500 text-sm max-w-xl mx-auto">
+      Two sub-pipelines: quiz generation (offline, by the teacher) and auto-grading
+      (online, after a student submits). No AI artefact is final without a teacher click.
+    </p>
+  </div>
+
+  <section class="max-w-6xl mx-auto px-4 py-10 space-y-10">
+    <!-- Sub-pipeline A -->
+    <DiagramFrame
+      title="Sub-pipeline A — Quiz Generation"
+      subtitle="Teacher picks scope and config → retrieval → Gemini structured output → validate → draft."
+    >
+      <Mermaid code={quizGenDiagram} />
+    </DiagramFrame>
+
+    <!-- Sub-pipeline B -->
+    <DiagramFrame
+      title="Sub-pipeline B — Auto-grading"
+      subtitle="MCQ is deterministic; short answer, essay, and code go to LLM-as-Judge. Teacher always finalises."
+    >
+      <Mermaid code={gradingDiagram} />
+    </DiagramFrame>
+
+    <!-- Anti-bias call-out (sourced from content/architecture/assessment.md and content/overview.md) -->
+    <div class="bg-amber-50 border-l-4 border-amber-400 p-5 rounded-r-xl max-w-3xl">
+      <p class="font-semibold text-amber-900 mb-1">Anti-bias rule</p>
+      <p class="text-sm text-amber-800 leading-relaxed">
+        The model that <strong>generates</strong> a quiz (Gemini 2.5 Flash) is never the same
+        as the model that <strong>grades</strong> it (Groq Llama 3.3 70B). This is a documented
+        safeguard against self-preference bias — empirical research shows shared-model judging
+        inflates scores by 5–15% on subjective rubrics. The two models are also hosted by
+        different vendors, so a provider outage cannot knock out both at once.
+      </p>
+    </div>
+  </section>
+
+  <div class="md-content max-w-3xl mx-auto px-4 py-8">
+    <Content />
+  </div>
+
+  {related.length > 0 && (
+    <section class="max-w-3xl mx-auto px-4 pb-16">
+      <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">
+        Components in this pipeline
+      </h2>
+      <div class="flex flex-wrap gap-3">
+        {related.map((c) => (
+          <a
+            href={`${b}components/${c.id}`}
+            class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm hover:shadow-md transition"
+          >
+            {c.data.icon && <span class="text-base">{c.data.icon}</span>}
+            {c.data.title}
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+</BaseLayout>

@@ -1,17 +1,97 @@
 ---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.astro";
+import FeatureCard from "../components/FeatureCard.astro";
 
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout
+  title="ASAG — AI School Assistant & Grader"
+  description="A classroom AI workspace for teachers and students — document notebooks, cited Q&A, quiz generation, auto-grading, and exam lockdown."
+>
+  <!-- Hero -->
+  <Hero />
+
+  <!-- Feature cards -->
+  <section class="max-w-5xl mx-auto px-4 py-16">
+    <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">What ASAG does</h2>
+    <p class="text-slate-500 text-sm text-center mb-10">
+      Four capabilities designed around how classrooms actually work.
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <FeatureCard
+        icon="📚"
+        title="Smart document notebooks"
+        description="Upload PDF, DOCX, images, or code. Ask questions in natural language and get answers cited back to the exact source page."
+        href={`${b}features#notebook`}
+      />
+      <FeatureCard
+        icon="🖼️"
+        title="Auto slide deck generation"
+        description="One click produces a structured slide outline from notebook materials, then exports to PPTX and HTML via Marp."
+        href={`${b}features#slides`}
+      />
+      <FeatureCard
+        icon="✏️"
+        title="Quiz creation + auto-grading"
+        description="Generate multiple-choice, short answer, essay, and code questions. An LLM judge scores answers; teachers review and finalise."
+        href={`${b}features#assessment`}
+      />
+      <FeatureCard
+        icon="🔒"
+        title="Locked-down exam mode"
+        description="Fullscreen enforcement, tab-switch detection, copy/paste disabled. Proctor events are logged so teachers can see exactly what happened."
+        href={`${b}features#exam`}
+      />
+    </div>
+  </section>
+
+  <!-- Architecture overview -->
+  <section class="max-w-5xl mx-auto px-4 pb-20">
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-2">How it's built</h2>
+      <p class="text-slate-500 text-sm leading-relaxed max-w-2xl">
+        ASAG is a layered system: a Streamlit frontend talks to FastAPI, which dispatches to
+        specialised services for ingestion, retrieval, assessment, and slide generation. Self-hosted
+        BGE-M3 handles embeddings; Gemini and Groq handle generation and judging. Everything is
+        observable through Langfuse.
+      </p>
+    </div>
+
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-8">
+      <p class="text-slate-500 text-sm mb-6 max-w-xl mx-auto text-center">
+        ASAG has <strong class="text-slate-700">23 documented components</strong> across 6 architecture
+        layers — from the Streamlit UI to self-hosted BGE-M3 embeddings and Postgres RLS row isolation.
+        Explore the diagrams to see how they connect.
+      </p>
+      <div class="flex flex-wrap gap-3 justify-center">
+        <a
+          href={`${b}architecture/context`}
+          class="inline-flex items-center gap-1 border border-slate-200 bg-white rounded-lg px-4 py-2 text-sm text-slate-600 font-medium hover:text-indigo-600 hover:border-indigo-200 hover:shadow-sm transition"
+        >
+          C4 Context diagram →
+        </a>
+        <a
+          href={`${b}architecture/containers`}
+          class="inline-flex items-center gap-1 border border-slate-200 bg-white rounded-lg px-4 py-2 text-sm text-slate-600 font-medium hover:text-indigo-600 hover:border-indigo-200 hover:shadow-sm transition"
+        >
+          Container diagram →
+        </a>
+        <a
+          href={`${b}diagrams/high-level`}
+          class="inline-flex items-center gap-1 border border-slate-200 bg-white rounded-lg px-4 py-2 text-sm text-slate-600 font-medium hover:text-indigo-600 hover:border-indigo-200 hover:shadow-sm transition"
+        >
+          Full system map →
+        </a>
+        <a
+          href={`${b}components`}
+          class="inline-flex items-center gap-1 border border-slate-200 bg-white rounded-lg px-4 py-2 text-sm text-slate-600 font-medium hover:text-indigo-600 hover:border-indigo-200 hover:shadow-sm transition"
+        >
+          All 23 components →
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

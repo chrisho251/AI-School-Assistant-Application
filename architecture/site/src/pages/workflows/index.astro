@@ -1,0 +1,192 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import DiagramFrame from "../../components/DiagramFrame.astro";
+import Mermaid from "../../components/Mermaid.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+// ── Pipeline orchestration flowchart ──────────────────────────────────────
+const orchestrationCode = `flowchart TD
+  Teacher["👤 Teacher\\n(browser)"]
+  Student["👤 Student\\n(browser)"]
+
+  FastAPI["FastAPI\\n[API Gateway]"]
+
+  subgraph Pipelines ["ASAG Pipelines"]
+    Ingestion["Ingestion Pipeline\\n[parse → chunk → embed → index]"]
+    RAG["RAG / Retrieval Engine\\n[hybrid search + reranker + Q&A]"]
+    Assessment["Assessment Engine\\n[quiz generation + LLM-as-Judge]"]
+    Studio["Studio Engine\\n[slide outline + Marp render]"]
+  end
+
+  Postgres[("Postgres\\n+ pgvector")]
+  Storage[("Supabase\\nStorage")]
+
+  Teacher --> FastAPI
+  Student --> FastAPI
+  FastAPI -->|upload + enqueue| Ingestion
+  FastAPI -->|ask / quiz / slides| RAG
+  Ingestion -->|INSERT chunks| Postgres
+  RAG -->|SELECT chunks| Postgres
+  RAG --> Assessment
+  RAG --> Studio
+  Assessment -->|INSERT quizzes / answers| Postgres
+  Studio -->|PUT .pptx/.html| Storage
+
+  click FastAPI href "${b}components/fastapi" "FastAPI component"
+  click Ingestion href "${b}architecture/pipelines/ingestion" "Ingestion pipeline"
+  click RAG href "${b}architecture/pipelines/retrieval" "Retrieval pipeline"
+  click Assessment href "${b}architecture/pipelines/assessment" "Assessment pipeline"
+  click Studio href "${b}architecture/pipelines/slide-generation" "Slide generation"
+  click Postgres href "${b}components/pgvector" "pgvector component"
+  click Storage href "${b}components/supabase-storage" "Supabase Storage component"`;
+
+// ── State diagram 1: Source ingestion status ──────────────────────────────
+const ingestionStateCode = `stateDiagram-v2
+  [*] --> pending : file uploaded
+
+  pending --> parsing : stage 1 starts
+  parsing --> chunking : parse success
+  parsing --> failed_at_parsing : parse error
+
+  chunking --> embedding : chunks ready
+  embedding --> ready : vectors indexed
+  embedding --> failed_at_embedding : TEI unavailable
+
+  failed_at_parsing --> parsing : retry
+  failed_at_embedding --> embedding : retry (tenacity)
+  ready --> [*]
+
+  note right of ready
+    sources.ingestion_status = ready
+    Teacher can now ask Q&A
+  end note`;
+
+// ── State diagram 2: Quiz lifecycle ───────────────────────────────────────
+const quizStateCode = `stateDiagram-v2
+  [*] --> draft : teacher generates quiz
+
+  draft --> published : teacher clicks Publish
+  draft --> draft : teacher edits questions
+
+  published --> closed : teacher closes quiz
+  published --> [*]
+
+  note right of draft
+    quizzes.status = draft
+    Not visible to students
+  end note
+
+  note right of published
+    Students can start attempts
+  end note`;
+
+// ── State diagram 3: Attempt / grading lifecycle ──────────────────────────
+const attemptStateCode = `stateDiagram-v2
+  [*] --> in_progress : student starts attempt
+
+  in_progress --> submitted : student submits
+
+  submitted --> auto_graded : MCQ/short answer graded
+  submitted --> pending_sandbox : code question → E2B sandbox
+
+  pending_sandbox --> auto_graded : sandbox result returned
+
+  auto_graded --> finalized : teacher clicks Finalise
+
+  finalized --> [*]
+
+  note right of finalized
+    answers.final_score visible to student
+    attempts.status = finalized
+  end note`;
+---
+
+<BaseLayout
+  title="Workflows"
+  description="Pipeline orchestration map and lifecycle state diagrams for ASAG — ingestion, quiz, and grading flows."
+>
+  <div class="max-w-5xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Workflows</h1>
+    <p class="text-slate-500 mb-8 leading-relaxed max-w-2xl">
+      How the four ASAG pipelines connect, and the lifecycle state machines for
+      sources, quizzes, and grading attempts. Click highlighted nodes to jump to
+      the corresponding pipeline or component page.
+    </p>
+
+    <!-- ── Orchestration map ── -->
+    <h2 class="text-xl font-semibold text-slate-700 mb-1 mt-2">Pipeline orchestration</h2>
+    <p class="text-sm text-slate-500 mb-4">
+      End-to-end flow from a teacher upload or student query through to the database.
+      Click any pipeline box or storage node for its detail page.
+    </p>
+    <DiagramFrame title="Pipeline orchestration map" subtitle="Click highlighted nodes to navigate">
+      <Mermaid code={orchestrationCode} />
+    </DiagramFrame>
+
+    <!-- ── Lifecycle state diagrams ── -->
+    <h2 class="text-xl font-semibold text-slate-700 mb-1 mt-10">Lifecycle state machines</h2>
+    <p class="text-sm text-slate-500 mb-6">
+      Status columns in the database are state machines. These diagrams show valid
+      transitions and the events that trigger them.
+    </p>
+
+    <div class="grid grid-cols-1 gap-8">
+      <!-- State 1: Source ingestion -->
+      <div>
+        <h3 class="text-base font-semibold text-slate-600 mb-2">
+          1 — Source ingestion status
+          <code class="ml-2 text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">sources.ingestion_status</code>
+        </h3>
+        <DiagramFrame subtitle="pending → parsing → chunking → embedding → ready">
+          <Mermaid code={ingestionStateCode} />
+        </DiagramFrame>
+      </div>
+
+      <!-- State 2: Quiz lifecycle -->
+      <div>
+        <h3 class="text-base font-semibold text-slate-600 mb-2">
+          2 — Quiz lifecycle
+          <code class="ml-2 text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">quizzes.status</code>
+        </h3>
+        <DiagramFrame subtitle="draft → published → closed">
+          <Mermaid code={quizStateCode} />
+        </DiagramFrame>
+      </div>
+
+      <!-- State 3: Attempt / grading -->
+      <div>
+        <h3 class="text-base font-semibold text-slate-600 mb-2">
+          3 — Attempt &amp; grading lifecycle
+          <code class="ml-2 text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">attempts.status</code>
+        </h3>
+        <DiagramFrame subtitle="in_progress → submitted → auto_graded → finalized">
+          <Mermaid code={attemptStateCode} />
+        </DiagramFrame>
+      </div>
+    </div>
+
+    <!-- Key design notes -->
+    <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+        <p class="font-semibold text-indigo-800 mb-1">Teacher always finalises</p>
+        <p class="text-indigo-700">
+          No attempt status reaches students until a teacher clicks <strong>Finalise</strong>.
+          Auto-graded scores are proposals; <code class="bg-indigo-100 px-1 rounded text-xs">final_score</code>
+          is only written after teacher review.
+        </p>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <p class="font-semibold text-amber-800 mb-1">Ingestion is idempotent</p>
+        <p class="text-amber-700">
+          Re-uploading the same file is safe — the SHA-256 <code class="bg-amber-100 px-1 rounded text-xs">checksum</code>
+          on <code class="bg-amber-100 px-1 rounded text-xs">sources</code> prevents duplicate chunks from being
+          indexed.
+        </p>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

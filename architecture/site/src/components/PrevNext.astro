@@ -1,0 +1,57 @@
+---
+/**
+ * PrevNext — bottom-of-page navigation between sibling pages.
+ * Pass prev and/or next as { label, href } objects; omit either to suppress.
+ */
+
+interface NavLink {
+  label: string;
+  href: string;
+}
+
+interface Props {
+  prev?: NavLink;
+  next?: NavLink;
+}
+
+const { prev, next } = Astro.props;
+---
+
+{(prev || next) && (
+  <nav
+    aria-label="Page navigation"
+    class="flex justify-between items-center mt-12 pt-6 border-t border-slate-200 text-sm font-medium gap-4"
+  >
+    <!-- Previous -->
+    <div class="flex-1">
+      {prev && (
+        <a
+          href={prev.href}
+          class="inline-flex items-center gap-3 text-slate-600 hover:text-indigo-600 transition group"
+        >
+          <span class="text-lg group-hover:-translate-x-0.5 transition-transform">←</span>
+          <div class="flex flex-col">
+            <span class="text-xs text-slate-400 font-normal">Previous</span>
+            <span>{prev.label}</span>
+          </div>
+        </a>
+      )}
+    </div>
+
+    <!-- Next -->
+    <div class="flex-1 flex justify-end">
+      {next && (
+        <a
+          href={next.href}
+          class="inline-flex items-center gap-3 text-slate-600 hover:text-indigo-600 transition group text-right"
+        >
+          <div class="flex flex-col">
+            <span class="text-xs text-slate-400 font-normal">Next</span>
+            <span>{next.label}</span>
+          </div>
+          <span class="text-lg group-hover:translate-x-0.5 transition-transform">→</span>
+        </a>
+      )}
+    </div>
+  </nav>
+)}

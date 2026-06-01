@@ -1,0 +1,30 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../../components/Breadcrumbs.astro";
+import PrevNext from "../../../components/PrevNext.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+---
+
+<BaseLayout
+  title="Assessment Pipeline"
+  description="Quiz generation, auto-grading, and LLM-as-Judge in ASAG."
+>
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Assessment Pipeline</h1>
+    <p class="text-slate-500 mb-4">
+      Covers quiz generation (Gemini 2.5 Flash) and auto-grading: deterministic MCQ scoring,
+      LLM-as-Judge for open-ended answers (Groq Llama 3.3 70B), and sandboxed code execution (E2B).
+    </p>
+    <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-6 text-sm text-slate-500 flex items-center gap-2">
+      Detailed step-by-step diagram available at
+      <a href={`${b}diagrams/assessment`} class="text-indigo-600 hover:underline font-medium">Assessment Pipeline diagram →</a>
+    </div>
+    <PrevNext
+      prev={{ label: "Retrieval Pipeline", href: `${b}architecture/pipelines/retrieval` }}
+      next={{ label: "Slide Generation Pipeline", href: `${b}architecture/pipelines/slide-generation` }}
+    />
+  </div>
+</BaseLayout>

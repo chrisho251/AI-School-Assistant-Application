@@ -1,0 +1,37 @@
+---
+interface Props {
+  code: string;
+}
+const { code } = Astro.props;
+---
+
+<pre class="mermaid not-prose">{code}</pre>
+
+<script>
+  import mermaid from "mermaid";
+
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "loose",
+    theme: "base",
+    fontFamily: "Inter, system-ui, sans-serif",
+    themeVariables: {
+      primaryColor: "#eff6ff",
+      primaryBorderColor: "#475569",
+      primaryTextColor: "#0f172a",
+      lineColor: "#475569",
+      secondaryColor: "#ecfeff",
+      tertiaryColor: "#fef3c7",
+      actorBkg: "#f8fafc",
+      actorBorder: "#475569",
+      sequenceNumberColor: "#0f172a",
+      noteBkgColor: "#fef3c7",
+      noteBorderColor: "#a16207",
+    },
+    flowchart: { curve: "basis", useMaxWidth: false, htmlLabels: true, padding: 16 },
+    sequence: { actorMargin: 60, messageMargin: 40 },
+  });
+
+  // type="module" scripts are deferred — DOM is ready when this runs
+  mermaid.run({ querySelector: ".mermaid" });
+</script>

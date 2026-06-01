@@ -62,8 +62,12 @@ uv.lock
 # Documents
 docs/
 
-# Markdown
+# Markdown (project-level docs and generated outputs)
 *.md
+# Allow architecture site source content — these .md files ARE the site content
+architecture/*.md
+architecture/CLAUDE.md
+
 
 # Docker volumes
 postgres-data/
@@ -71,3 +75,6 @@ model-cache/
 
 # Claude
 .claude
+
+# github deploy
+.github

@@ -1,0 +1,145 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import ProsConsTable from "../components/ProsConsTable.astro";
+import { getCollection } from "astro:content";
+
+interface CurrentSide {
+  name: string;
+  tier: string;
+  pros: string[];
+  cons?: string[];
+}
+
+interface AltSide {
+  name: string;
+  tier: string;
+  pros: string[];
+  why_better: string;
+}
+
+interface Frontmatter {
+  title: string;
+  category: string;
+  icon?: string;
+  usedInPipeline: string[];
+  current?: CurrentSide;
+  prodAlternative?: AltSide;
+  status?: string;
+  summary?: string;
+}
+
+interface Props {
+  frontmatter: Frontmatter;
+}
+
+const { frontmatter } = Astro.props;
+const { title, category, icon, usedInPipeline, current, prodAlternative } = frontmatter;
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+const allComponents = await getCollection("components");
+const related = allComponents
+  .filter(
+    (c) =>
+      c.data.title !== title &&
+      c.data.usedInPipeline.some((p) => usedInPipeline.includes(p))
+  )
+  .slice(0, 8);
+
+const categoryColors: Record<string, string> = {
+  storage:      "bg-amber-100 text-amber-800 border-amber-300",
+  embedding:    "bg-sky-100 text-sky-800 border-sky-300",
+  llm:          "bg-rose-100 text-rose-800 border-rose-300",
+  infra:        "bg-slate-100 text-slate-700 border-slate-300",
+  parsing:      "bg-emerald-100 text-emerald-800 border-emerald-300",
+  reranker:     "bg-violet-100 text-violet-800 border-violet-300",
+  observability:"bg-orange-100 text-orange-800 border-orange-300",
+  ui:           "bg-teal-100 text-teal-800 border-teal-300",
+  api:          "bg-indigo-100 text-indigo-800 border-indigo-300",
+  security:     "bg-red-100 text-red-800 border-red-300",
+};
+
+const pipelineLabels: Record<string, string> = {
+  ingestion: "Ingestion",
+  retrieval: "Retrieval",
+  qa:        "Q&A",
+  assessment:"Assessment",
+  slides:    "Slides",
+};
+
+// Map pipeline keys to their architecture page URLs
+const pipelineHrefs: Record<string, string> = {
+  ingestion:  `${b}architecture/pipelines/ingestion`,
+  retrieval:  `${b}architecture/pipelines/retrieval`,
+  qa:         `${b}architecture/pipelines/retrieval`,
+  assessment: `${b}architecture/pipelines/assessment`,
+  slides:     `${b}architecture/pipelines/slide-generation`,
+};
+
+const badgeClass = categoryColors[category] ?? categoryColors["infra"]!;
+---
+
+<BaseLayout title={title}>
+  <!-- Hero banner — neutral slate gradient -->
+  <div class="bg-diagram-frame py-12 px-6 border-b border-slate-200">
+    <div class="max-w-5xl mx-auto">
+      <div class="flex items-center gap-3 mb-3">
+        {icon && <span class="text-4xl">{icon}</span>}
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-800">{title}</h1>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class={`text-xs border rounded-full px-3 py-1 font-semibold ${badgeClass}`}>
+          {category}
+        </span>
+        {usedInPipeline.map((p) => (
+          <a
+            href={pipelineHrefs[p] ?? `${b}architecture`}
+            class="text-xs bg-white text-slate-600 border border-slate-300 rounded-full px-3 py-1 hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-700 transition font-medium"
+          >
+            {pipelineLabels[p] ?? p}
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <!-- Body: content + sidebar -->
+  <div class="max-w-5xl mx-auto px-4 py-10 flex gap-10">
+    <!-- Main content -->
+    <article class="flex-1 min-w-0 md-content">
+      <slot />
+      {current && prodAlternative && (
+        <div class="not-prose mt-10 pt-8 border-t border-slate-200">
+          <h2 class="text-xl font-semibold text-slate-800 mb-1">Production alternative</h2>
+          <p class="text-sm text-slate-500 mb-4">
+            Learning build vs. what a production deployment would use.
+          </p>
+          <ProsConsTable current={current} alternative={prodAlternative} />
+        </div>
+      )}
+    </article>
+
+    <!-- Related sidebar (desktop only) -->
+    {related.length > 0 && (
+      <aside class="hidden md:block w-52 shrink-0">
+        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+          Related
+        </h3>
+        <ul class="space-y-2">
+          {related.map((c) => (
+            <li>
+              <a
+                href={`${b}components/${c.id}`}
+                class="flex items-center gap-2 text-sm text-slate-700 hover:text-indigo-600 border border-slate-200 rounded-xl px-3 py-2.5 bg-white shadow-sm hover:shadow-md hover:border-indigo-200 transition"
+              >
+                {c.data.icon && <span class="text-base">{c.data.icon}</span>}
+                <span class="truncate">{c.data.title}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    )}
+  </div>
+</BaseLayout>

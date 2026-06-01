@@ -1,0 +1,267 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import DiagramFrame from "../components/DiagramFrame.astro";
+import Mermaid from "../components/Mermaid.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+// Mermaid erDiagram — 15-table ASAG schema
+// Relationships shown: only FKs (cardinality: || = one, o| = zero-or-one, o{ = zero-or-many, }{ = one-or-many)
+const erdCode = `erDiagram
+  organizations {
+    uuid id PK
+    text name
+    text slug
+  }
+  users {
+    uuid id PK
+    uuid org_id FK
+    text email
+    text role
+  }
+  classes {
+    uuid id PK
+    uuid org_id FK
+    text name
+    uuid teacher_id FK
+  }
+  class_members {
+    uuid class_id FK
+    uuid student_id FK
+  }
+  notebooks {
+    uuid id PK
+    uuid owner_id FK
+    uuid class_id FK
+    text title
+    text subject
+  }
+  notebook_acl {
+    uuid notebook_id FK
+    uuid user_id FK
+    text permission
+  }
+  sources {
+    uuid id PK
+    uuid notebook_id FK
+    text type
+    text storage_url
+    text ingestion_status
+    text checksum
+  }
+  chunks {
+    uuid id PK
+    uuid source_id FK
+    uuid notebook_id FK
+    int ordinal
+    text content
+    text content_type
+    vector embedding
+    jsonb sparse_vector
+    jsonb metadata
+  }
+  conversations {
+    uuid id PK
+    uuid notebook_id FK
+    uuid user_id FK
+    timestamptz started_at
+  }
+  messages {
+    uuid id PK
+    uuid conversation_id FK
+    text role
+    text content
+    jsonb citations
+    int tokens
+  }
+  artifacts {
+    uuid id PK
+    uuid notebook_id FK
+    text kind
+    text status
+    text file_url
+  }
+  quizzes {
+    uuid id PK
+    uuid notebook_id FK
+    uuid created_by FK
+    text title
+    int time_limit_sec
+    text status
+  }
+  questions {
+    uuid id PK
+    uuid quiz_id FK
+    int ordinal
+    text type
+    text stem
+    jsonb rubric
+    uuid[] source_chunk_ids
+  }
+  attempts {
+    uuid id PK
+    uuid quiz_id FK
+    uuid student_id FK
+    timestamptz started_at
+    jsonb proctor_events
+    text status
+  }
+  answers {
+    uuid id PK
+    uuid attempt_id FK
+    uuid question_id FK
+    jsonb response
+    numeric auto_score
+    numeric final_score
+    timestamptz finalized_at
+  }
+
+  organizations ||--o{ users : "has"
+  organizations ||--o{ classes : "owns"
+  users ||--o{ classes : "teaches"
+  classes ||--o{ class_members : "has"
+  users ||--o{ class_members : "enrolled"
+  users ||--o{ notebooks : "owns"
+  classes ||--o{ notebooks : "has"
+  notebooks ||--o{ notebook_acl : "controls"
+  users ||--o{ notebook_acl : "granted"
+  notebooks ||--o{ sources : "contains"
+  notebooks ||--o{ chunks : "indexes"
+  sources ||--o{ chunks : "produces"
+  notebooks ||--o{ conversations : "has"
+  users ||--o{ conversations : "starts"
+  conversations ||--o{ messages : "contains"
+  notebooks ||--o{ artifacts : "generates"
+  notebooks ||--o{ quizzes : "has"
+  users ||--o{ quizzes : "created by"
+  quizzes ||--o{ questions : "contains"
+  quizzes ||--o{ attempts : "attempted by"
+  users ||--o{ attempts : "makes"
+  attempts ||--o{ answers : "has"
+  questions ||--o{ answers : "answered"`;
+---
+
+<BaseLayout
+  title="Data Model"
+  description="Full ERD and table reference for the ASAG Postgres schema — 15 tables, multi-tenant RLS, pgvector."
+>
+  <div class="max-w-5xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Data Model</h1>
+    <p class="text-slate-500 mb-8 leading-relaxed max-w-2xl">
+      Full entity-relationship diagram for the ASAG Postgres schema (15 tables).
+      Multi-tenant isolation is enforced at the database layer via Postgres Row-Level Security
+      on every table. Source of truth:
+      <a href={`${b}components/postgres-rls`} class="text-indigo-600 hover:underline">Postgres RLS component</a>
+      and <code class="bg-slate-100 px-1 rounded text-xs">infra/supabase/migrations/</code>.
+    </p>
+
+    <DiagramFrame title="Entity-Relationship Diagram" subtitle="15 tables · scroll right on small screens">
+      <Mermaid code={erdCode} />
+    </DiagramFrame>
+
+    <!-- Table reference ────────────────────────────────────────────── -->
+    <h2 class="text-xl font-semibold text-slate-700 mt-10 mb-4">Table reference</h2>
+
+    <div class="space-y-4 text-sm">
+
+      <!-- Tenant layer -->
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <div class="bg-amber-50 border-b border-slate-200 px-4 py-2">
+          <span class="font-semibold text-amber-800">Tenant layer</span>
+          <span class="ml-2 text-xs text-amber-600">org isolation enforced via org_id on every row</span>
+        </div>
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 text-slate-500 uppercase text-xs tracking-wide">
+            <tr><th class="px-4 py-2 text-left">Table</th><th class="px-4 py-2 text-left">Key columns</th><th class="px-4 py-2 text-left">Notes</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr><td class="px-4 py-2 font-mono text-slate-700">organizations</td><td class="px-4 py-2 text-slate-500">id, name, slug</td><td class="px-4 py-2 text-slate-400">Root tenant; slug is URL-safe</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">users</td><td class="px-4 py-2 text-slate-500">id (= auth.users.id), org_id, role</td><td class="px-4 py-2 text-slate-400">role: admin | teacher | student</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">classes</td><td class="px-4 py-2 text-slate-500">id, org_id, teacher_id</td><td class="px-4 py-2 text-slate-400">A teacher's group of students</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">class_members</td><td class="px-4 py-2 text-slate-500">class_id, student_id</td><td class="px-4 py-2 text-slate-400">Composite PK; enrolment join table</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Knowledge layer -->
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <div class="bg-emerald-50 border-b border-slate-200 px-4 py-2">
+          <span class="font-semibold text-emerald-800">Knowledge layer</span>
+          <span class="ml-2 text-xs text-emerald-600">notebooks, sources, chunks, conversations</span>
+        </div>
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 text-slate-500 uppercase text-xs tracking-wide">
+            <tr><th class="px-4 py-2 text-left">Table</th><th class="px-4 py-2 text-left">Key columns</th><th class="px-4 py-2 text-left">Notes</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr><td class="px-4 py-2 font-mono text-slate-700">notebooks</td><td class="px-4 py-2 text-slate-500">id, owner_id, class_id, title</td><td class="px-4 py-2 text-slate-400">A teacher's knowledge base for a topic</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">notebook_acl</td><td class="px-4 py-2 text-slate-500">notebook_id, user_id, permission</td><td class="px-4 py-2 text-slate-400">permission: read | edit</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">sources</td><td class="px-4 py-2 text-slate-500">id, notebook_id, type, ingestion_status, checksum</td><td class="px-4 py-2 text-slate-400">checksum prevents duplicate ingestion</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">chunks</td><td class="px-4 py-2 text-slate-500">id, source_id, notebook_id, content, embedding vector(1024)</td><td class="px-4 py-2 text-slate-400">HNSW index on embedding; GIN on sparse_vector</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">conversations</td><td class="px-4 py-2 text-slate-500">id, notebook_id, user_id</td><td class="px-4 py-2 text-slate-400">One session per user per notebook</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">messages</td><td class="px-4 py-2 text-slate-500">id, conversation_id, role, content, citations</td><td class="px-4 py-2 text-slate-400">citations is jsonb array of chunk_ids + page refs</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">artifacts</td><td class="px-4 py-2 text-slate-500">id, notebook_id, kind, file_url</td><td class="px-4 py-2 text-slate-400">kind: slide_deck | summary | mindmap</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Assessment layer -->
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <div class="bg-violet-50 border-b border-slate-200 px-4 py-2">
+          <span class="font-semibold text-violet-800">Assessment layer</span>
+          <span class="ml-2 text-xs text-violet-600">quizzes, questions, attempts, answers</span>
+        </div>
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 text-slate-500 uppercase text-xs tracking-wide">
+            <tr><th class="px-4 py-2 text-left">Table</th><th class="px-4 py-2 text-left">Key columns</th><th class="px-4 py-2 text-left">Notes</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr><td class="px-4 py-2 font-mono text-slate-700">quizzes</td><td class="px-4 py-2 text-slate-500">id, notebook_id, status, time_limit_sec</td><td class="px-4 py-2 text-slate-400">status: draft | published | closed</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">questions</td><td class="px-4 py-2 text-slate-500">id, quiz_id, type, rubric, source_chunk_ids</td><td class="px-4 py-2 text-slate-400">source_chunk_ids: grounding contract — required</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">attempts</td><td class="px-4 py-2 text-slate-500">id, quiz_id, student_id, proctor_events, status</td><td class="px-4 py-2 text-slate-400">proctor_events: jsonb array of lockdown violations</td></tr>
+            <tr><td class="px-4 py-2 font-mono text-slate-700">answers</td><td class="px-4 py-2 text-slate-500">id, attempt_id, auto_score, final_score, finalized_at</td><td class="px-4 py-2 text-slate-400">auto_score preserved when teacher overrides</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Design notes -->
+    <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <p class="font-semibold text-slate-700 mb-1">Why two score columns?</p>
+        <p class="text-slate-500">
+          <code class="bg-slate-200 px-1 rounded text-xs">auto_score</code> and
+          <code class="bg-slate-200 px-1 rounded text-xs">final_score</code> are kept separate.
+          If a teacher overrides the AI score, the original auto judgement is preserved for
+          retrospective evaluation of grader quality.
+        </p>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <p class="font-semibold text-slate-700 mb-1">source_chunk_ids is the anti-hallucination contract</p>
+        <p class="text-slate-500">
+          Every question row must carry the UUIDs of the chunks it was generated from.
+          Validation rejects questions that cannot be traced back to source material.
+        </p>
+      </div>
+    </div>
+
+    <!-- Links -->
+    <div class="mt-8 flex flex-wrap gap-3 text-sm">
+      <a href={`${b}components/pgvector`}
+         class="inline-flex items-center gap-1 border border-slate-200 rounded-lg px-4 py-2 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 bg-white transition">
+        pgvector (vector index) →
+      </a>
+      <a href={`${b}components/postgres-rls`}
+         class="inline-flex items-center gap-1 border border-slate-200 rounded-lg px-4 py-2 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 bg-white transition">
+        Postgres RLS (isolation) →
+      </a>
+      <a href={`${b}components/supabase`}
+         class="inline-flex items-center gap-1 border border-slate-200 rounded-lg px-4 py-2 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 bg-white transition">
+        Supabase (managed host) →
+      </a>
+    </div>
+  </div>
+</BaseLayout>

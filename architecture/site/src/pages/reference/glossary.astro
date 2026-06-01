@@ -1,0 +1,322 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import PrevNext from "../../components/PrevNext.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+---
+
+<BaseLayout
+  title="Glossary"
+  description="Alphabetical glossary of domain terms used in the ASAG architecture documentation."
+>
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Glossary</h1>
+    <p class="text-slate-500 mb-8 leading-relaxed">
+      Definitions for every domain term used across the ASAG documentation. All definitions
+      are sourced from the component pages, architecture files, or
+      <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs">proposal.md</code>.
+    </p>
+
+    <!-- Jump links -->
+    <nav class="flex gap-4 text-sm font-medium mb-10 border-b border-slate-200 pb-4">
+      <a href="#a-e" class="text-indigo-600 hover:underline">A – E</a>
+      <a href="#f-m" class="text-indigo-600 hover:underline">F – M</a>
+      <a href="#n-z" class="text-indigo-600 hover:underline">N – Z</a>
+    </nav>
+
+    <!-- ── A – E ─────────────────────────────────────────────────────── -->
+    <section id="a-e" class="mb-12">
+      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-6">A – E</h2>
+      <dl>
+
+        <dt class="font-semibold text-slate-800">attempt</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A student's session for a single published quiz. Stored in the <code class="bg-slate-100 px-1 rounded text-xs">attempts</code>
+          table with a status lifecycle: <em>in_progress → submitted → auto_graded → finalized</em>.
+          Proctor events are appended to <code class="bg-slate-100 px-1 rounded text-xs">attempts.proctor_events</code> (JSONB).
+        </dd>
+
+        <dt class="font-semibold text-slate-800">auto_score</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The AI-generated grade written to <code class="bg-slate-100 px-1 rounded text-xs">answers.auto_score</code>
+          immediately after grading. Visible only to the teacher; hidden from the student until
+          the teacher finalises the attempt. Preserved even when the teacher overrides it with
+          <code class="bg-slate-100 px-1 rounded text-xs">teacher_score</code>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">BGE-M3</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          BAAI's open-source multilingual text embedding model. Produces 1024-dimensional dense
+          vectors, sparse lexical-weight vectors, and multi-vectors from the same model.
+          Supports 100+ languages including Vietnamese. Self-hosted via the TEI container on port 8080.
+          See <a href={`${b}components/bge-m3`} class="text-indigo-600 hover:underline">BGE-M3 component</a>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">bi-encoder</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          An embedding model architecture that encodes query and document independently into
+          vectors. Enables fast approximate nearest-neighbour search but is less precise than a
+          cross-encoder. BGE-M3 is a bi-encoder used for first-stage retrieval.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">BM25</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          Best Match 25 — a classic probabilistic keyword ranking algorithm that weighs term
+          frequency against inverse document frequency. ASAG approximates BM25 using Postgres
+          full-text search (<code class="bg-slate-100 px-1 rounded text-xs">ts_rank</code> +
+          GIN index) as the sparse retrieval branch of hybrid search.
+          See <a href={`${b}components/bm25-postgres-fts`} class="text-indigo-600 hover:underline">BM25 / Postgres FTS component</a>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">chunk</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A segment of a source document, typically ~1,000 tokens with 150-token overlap.
+          Each chunk is stored in the <code class="bg-slate-100 px-1 rounded text-xs">chunks</code>
+          table alongside its <code class="bg-slate-100 px-1 rounded text-xs">embedding</code> (dense vector),
+          <code class="bg-slate-100 px-1 rounded text-xs">sparse_vector</code> (BM25 weights), and metadata.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">content_type</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A label on each chunk row indicating how it was produced: <em>text</em> (plain paragraph),
+          <em>table</em> (Docling table extraction), <em>image_caption</em> (Gemini Vision caption),
+          or <em>code</em> (AST/nbformat extraction).
+        </dd>
+
+        <dt class="font-semibold text-slate-800">cross-encoder</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A reranker model architecture that receives a (query, chunk) pair as a single concatenated
+          input and produces a relevance score. More accurate than a bi-encoder but ~50× slower,
+          so it is applied only to the top-20 candidates from RRF fusion.
+          See <a href={`${b}components/bge-reranker`} class="text-indigo-600 hover:underline">BGE Reranker component</a>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">dense vector</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A fixed-length float32 array (1024 numbers for BGE-M3) that encodes the semantic meaning
+          of a text passage. Stored in <code class="bg-slate-100 px-1 rounded text-xs">chunks.embedding</code>
+          as a <code class="bg-slate-100 px-1 rounded text-xs">vector(1024)</code> column indexed by HNSW.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">embedding</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The process of converting text into a numeric vector using a neural model (BGE-M3 in ASAG).
+          Enables similarity search: passages with similar meaning produce vectors with low cosine distance.
+        </dd>
+
+      </dl>
+    </section>
+
+    <!-- ── F – M ─────────────────────────────────────────────────────── -->
+    <section id="f-m" class="mb-12">
+      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-6">F – M</h2>
+      <dl>
+
+        <dt class="font-semibold text-slate-800">final_score</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The official grade written to <code class="bg-slate-100 px-1 rounded text-xs">answers.final_score</code>
+          only when a teacher clicks <strong>Finalise</strong>. May equal <code class="bg-slate-100 px-1 rounded text-xs">auto_score</code>
+          or a teacher override. Only after finalisation does the student see their grade.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">grounding contract</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The rule that every quiz question must carry a non-empty
+          <code class="bg-slate-100 px-1 rounded text-xs">source_chunk_ids</code> array referencing
+          the chunks it was generated from. Questions that fail this validation are rejected. It is
+          ASAG's primary anti-hallucination safeguard.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">HNSW</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          Hierarchical Navigable Small World — an approximate nearest-neighbour graph index.
+          ASAG creates an HNSW index on <code class="bg-slate-100 px-1 rounded text-xs">chunks.embedding</code>
+          with <code class="bg-slate-100 px-1 rounded text-xs">m=16, ef_construction=64</code>.
+          Enables sub-10 ms vector search at the cost of a small recall approximation vs. exact search.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">hybrid search</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A retrieval strategy that runs dense (semantic HNSW) and sparse (BM25/FTS) searches in
+          parallel, then merges both ranked lists via Reciprocal Rank Fusion (RRF). Benchmarks show
+          Recall@5 ≈ 0.82 for hybrid + rerank vs. 0.59 for dense-only (proposal.md §6.2).
+        </dd>
+
+        <dt class="font-semibold text-slate-800">ingestion</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The asynchronous pipeline that converts an uploaded source file into indexed chunks.
+          Stages: persist → parse (Docling / AST / nbformat) → chunk (tiktoken) →
+          embed (BGE-M3 via TEI) → index (pgvector INSERT).
+          See <a href={`${b}architecture/pipelines/ingestion`} class="text-indigo-600 hover:underline">Ingestion Pipeline</a>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">IVFFlat</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          Inverted File Flat — an older pgvector approximate nearest-neighbour index that requires
+          training (CLUSTER) on representative data before use. ASAG uses HNSW instead because it
+          requires no retraining when new chunks are inserted.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">JWT</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          JSON Web Token — a signed, URL-safe token issued by Supabase Auth after login. Contains
+          <code class="bg-slate-100 px-1 rounded text-xs">sub</code> (user UUID),
+          <code class="bg-slate-100 px-1 rounded text-xs">org_id</code>, and
+          <code class="bg-slate-100 px-1 rounded text-xs">role</code> claims injected via a Postgres hook.
+          FastAPI verifies the signature on every request before any database access.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">LLM-as-Judge</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A grading pattern where a language model evaluates student answers by scoring them against
+          a rubric and reference answer. ASAG uses Groq Llama 3.3 70B as the judge — a different
+          model from Gemini Flash (generator) to prevent self-preference score inflation.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">lockdown mode</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The browser-enforced exam environment activated when a student opens a quiz attempt.
+          Uses the Fullscreen API, Page Visibility API, and keyboard listeners to detect
+          tab switches, fullscreen exits, and copy/paste. Events are logged to
+          <code class="bg-slate-100 px-1 rounded text-xs">attempts.proctor_events</code>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">multi-tenant pooled</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A database architecture where all organisations share a single Postgres schema and
+          connection pool. Row-Level Security policies — activated per-request via
+          <code class="bg-slate-100 px-1 rounded text-xs">SET LOCAL app.org_id</code> — enforce
+          data isolation between tenants at the database layer.
+        </dd>
+
+      </dl>
+    </section>
+
+    <!-- ── N – Z ─────────────────────────────────────────────────────── -->
+    <section id="n-z" class="mb-12">
+      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-6">N – Z</h2>
+      <dl>
+
+        <dt class="font-semibold text-slate-800">notebook</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The primary knowledge container in ASAG. A teacher creates one per topic, uploads source
+          files into it, and controls student access via <code class="bg-slate-100 px-1 rounded text-xs">notebook_acl</code>.
+          All retrieval queries are scoped to a single notebook's chunks.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">org_id</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The UUID of the organisation (school) a user belongs to. Embedded as a custom claim in
+          the JWT via a Postgres hook and used by all RLS policies to isolate data between tenants.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">pgvector</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          An open-source Postgres extension that adds a <code class="bg-slate-100 px-1 rounded text-xs">vector</code>
+          data type and HNSW / IVFFlat approximate-nearest-neighbour indexes. ASAG stores 1024-dimensional
+          BGE-M3 embeddings in a <code class="bg-slate-100 px-1 rounded text-xs">vector(1024)</code> column.
+          See <a href={`${b}components/pgvector`} class="text-indigo-600 hover:underline">pgvector component</a>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">proctor event</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A violation recorded in <code class="bg-slate-100 px-1 rounded text-xs">attempts.proctor_events</code>
+          (JSONB array) during an exam: <em>tab_switch</em>, <em>exit_fullscreen</em>,
+          <em>copy</em>, <em>right_click</em>, or <em>devtools</em>. Teachers review the event
+          timeline before finalising grades.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">RAG</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          Retrieval-Augmented Generation — the pattern of supplying a language model with retrieved
+          document chunks as context before it generates an answer. Grounds responses in the teacher's
+          uploaded materials and enables citation back to source pages.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">reranker</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          The second-stage retrieval model (bge-reranker-v2-m3) that re-scores the top-20 RRF
+          candidates using a cross-encoder architecture, keeping the top 5–8. Improves Recall@5
+          by +17 percentage points over hybrid search alone (proposal.md §6.2).
+        </dd>
+
+        <dt class="font-semibold text-slate-800">RLS</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          Postgres Row-Level Security — a database-layer access control mechanism where policies
+          filter rows on SELECT/INSERT/UPDATE/DELETE before returning results to the application.
+          ASAG uses RLS on every tenant-scoped table to enforce multi-tenant isolation.
+          See <a href={`${b}components/postgres-rls`} class="text-indigo-600 hover:underline">Postgres RLS component</a>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">RRF (Reciprocal Rank Fusion)</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A rank-based score merging formula: <code class="bg-slate-100 px-1 rounded text-xs">score = Σ 1 / (k + rank)</code>
+          where k = 60. Combines the dense and sparse ranked lists without requiring comparable
+          score scales. Top-20 results are passed to the reranker.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">rubric</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A structured scoring guide stored in <code class="bg-slate-100 px-1 rounded text-xs">questions.rubric</code>
+          (JSONB). Defines criteria and weights that the LLM-as-Judge uses to evaluate short-answer
+          and essay responses.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">signed URL</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A time-limited URL (default TTL: 1 hour) generated by Supabase Storage that grants access
+          to a specific file path without requiring the caller to present a JWT. Used to serve source
+          files and generated artefacts (.pptx, .html) to authenticated users.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">source</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A file uploaded by a teacher into a notebook. Stored in the
+          <code class="bg-slate-100 px-1 rounded text-xs">sources</code> table with
+          <code class="bg-slate-100 px-1 rounded text-xs">storage_url</code>,
+          <code class="bg-slate-100 px-1 rounded text-xs">ingestion_status</code>, and a SHA-256
+          <code class="bg-slate-100 px-1 rounded text-xs">checksum</code> that prevents duplicate ingestion.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">sparse vector</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A JSONB object mapping token IDs to learned lexical weights (SPLADE-style), produced
+          alongside the dense vector by BGE-M3. Stored in <code class="bg-slate-100 px-1 rounded text-xs">chunks.sparse_vector</code>
+          and used for the keyword-matching branch of hybrid search.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">TEI</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          Text Embeddings Inference — HuggingFace's Rust-based model serving runtime for embedding
+          and reranking. ASAG runs two TEI containers: port 8080 (BGE-M3 embeddings) and
+          port 8081 (bge-reranker-v2-m3). Both use the <code class="bg-slate-100 px-1 rounded text-xs">cpu-1.5</code>
+          Docker image.
+          See <a href={`${b}components/tei`} class="text-indigo-600 hover:underline">TEI component</a>.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">tiktoken</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          OpenAI's Rust-backed Python tokenizer library. Used in the ASAG chunker to count tokens
+          and enforce the 1,000-token chunk budget with 150-token overlap, using the
+          <code class="bg-slate-100 px-1 rounded text-xs">cl100k_base</code> BPE vocabulary.
+        </dd>
+
+        <dt class="font-semibold text-slate-800">tsvector</dt>
+        <dd class="text-sm text-slate-500 mb-4 pl-4">
+          A Postgres data type that stores a normalised, stemmed, stop-word-filtered list of
+          lexemes derived from document text. A GIN index on
+          <code class="bg-slate-100 px-1 rounded text-xs">to_tsvector('english', content)</code>
+          enables fast BM25-approximation queries via <code class="bg-slate-100 px-1 rounded text-xs">ts_rank</code>.
+        </dd>
+
+      </dl>
+    </section>
+
+    <PrevNext
+      next={{ label: "Security Model", href: `${b}reference/security-model` }}
+    />
+  </div>
+</BaseLayout>

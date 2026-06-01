@@ -1,0 +1,20 @@
+---
+// Static mode: getStaticPaths is required but we generate no pages from this route.
+// Unmatched component URLs are handled by src/pages/404.astro (served by GitHub Pages).
+export function getStaticPaths() {
+  return [];
+}
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Coming soon">
+  <div class="max-w-xl mx-auto px-4 py-24 text-center">
+    <p class="text-4xl mb-4">🚧</p>
+    <h1 class="text-2xl font-bold text-slate-800 mb-3">Component page coming soon</h1>
+    <p class="text-slate-500 text-sm">
+      Add a file in
+      <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">content/components/</code>
+      to author this page.
+    </p>
+  </div>
+</BaseLayout>

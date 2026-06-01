@@ -1,0 +1,30 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../../components/Breadcrumbs.astro";
+import PrevNext from "../../../components/PrevNext.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+---
+
+<BaseLayout
+  title="Slide Generation Pipeline"
+  description="RAG-driven outline generation, Marp rendering, and PPTX/HTML export in ASAG."
+>
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Slide Generation Pipeline</h1>
+    <p class="text-slate-500 mb-4">
+      Retrieves top-30 relevant chunks, generates a structured outline via Gemini 2.5 Flash,
+      renders Marp markdown through marp-cli, and stores the resulting PPTX and HTML in Supabase Storage.
+    </p>
+    <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-6 text-sm text-slate-500 flex items-center gap-2">
+      Detailed step-by-step diagram available at
+      <a href={`${b}diagrams/slide-generation`} class="text-indigo-600 hover:underline font-medium">Slide Generation diagram →</a>
+    </div>
+    <PrevNext
+      prev={{ label: "Assessment Pipeline", href: `${b}architecture/pipelines/assessment` }}
+      next={{ label: "Components", href: `${b}components` }}
+    />
+  </div>
+</BaseLayout>

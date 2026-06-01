@@ -1,0 +1,98 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+type ArchCard = { title: string; summary: string; href: string };
+
+const sections: ArchCard[] = [
+  // C4 diagrams
+  {
+    title: "Context (C4 Level 1)",
+    summary: "ASAG in its environment — user types, external SaaS dependencies, and the system boundary.",
+    href: `${b}architecture/context`,
+  },
+  {
+    title: "Containers (C4 Level 2)",
+    summary: "Internal deployable units — Streamlit, FastAPI, four AI engines, TEI, Postgres, Langfuse.",
+    href: `${b}architecture/containers`,
+  },
+  // Pipelines (blockquotes pulled from content/architecture/*.md)
+  {
+    title: "Ingestion Pipeline",
+    summary:
+      "Turns a raw file uploaded by a teacher into searchable chunks with vector embeddings, asynchronously and idempotently.",
+    href: `${b}architecture/pipelines/ingestion`,
+  },
+  {
+    title: "Retrieval Pipeline",
+    summary:
+      "Online, shared by Q&A, quiz generation, and slide generation. Returns the 5–8 most relevant chunks for any query in a given notebook.",
+    href: `${b}architecture/pipelines/retrieval`,
+  },
+  {
+    title: "Assessment Pipeline",
+    summary:
+      "Two sub-pipelines: quiz generation (offline, by the teacher) and auto-grading (online, after a student submits). No AI artefact is final without a teacher click.",
+    href: `${b}architecture/pipelines/assessment`,
+  },
+  {
+    title: "Slide Generation Pipeline",
+    summary:
+      "Notebook in, .pptx out. Same retrieval pipeline as Q&A; the only difference is the prompt and the renderer.",
+    href: `${b}architecture/pipelines/slide-generation`,
+  },
+  // Session 3 pages not in the original index
+  {
+    title: "Workflows",
+    summary:
+      "Pipeline orchestration map and lifecycle state machines for source ingestion, quiz, and attempt grading.",
+    href: `${b}workflows`,
+  },
+  {
+    title: "Data Model",
+    summary:
+      "Full 15-table Postgres schema — multi-tenant RLS, pgvector HNSW index, and assessment audit trail.",
+    href: `${b}data-model`,
+  },
+  {
+    title: "Security Model",
+    summary:
+      "Five-layer security model: Supabase Auth → FastAPI JWT → RBAC → Postgres RLS → signed URLs.",
+    href: `${b}reference/security-model`,
+  },
+];
+---
+
+<BaseLayout
+  title="Architecture"
+  description="C4 model diagrams, pipeline overviews, data model, and security flow for ASAG."
+>
+  <div class="max-w-5xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Architecture</h1>
+    <p class="text-slate-500 mb-10 text-base leading-relaxed">
+      System architecture organised by the C4 model — Context, Containers, and per-pipeline
+      detail — plus data model, workflows, and the security chain.
+    </p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {sections.map((s) => (
+        <a
+          href={s.href}
+          class="group flex flex-col gap-2 bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md hover:border-indigo-200 transition"
+        >
+          <p class="font-semibold text-slate-800 group-hover:text-indigo-700 transition">
+            {s.title}
+          </p>
+          <p class="text-sm text-slate-500 leading-relaxed flex-1">{s.summary}</p>
+          <span class="text-sm font-medium text-indigo-600 group-hover:text-indigo-800 transition mt-1">
+            Open →
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
+</BaseLayout>

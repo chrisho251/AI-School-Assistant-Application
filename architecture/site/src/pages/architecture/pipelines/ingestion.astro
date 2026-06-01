@@ -1,0 +1,30 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../../components/Breadcrumbs.astro";
+import PrevNext from "../../../components/PrevNext.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+---
+
+<BaseLayout
+  title="Ingestion Pipeline"
+  description="Document parsing, chunking, embedding, and vector indexing in ASAG."
+>
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Ingestion Pipeline</h1>
+    <p class="text-slate-500 mb-4">
+      Transforms raw uploaded documents (PDF, DOCX, images, code files, Jupyter notebooks) into
+      indexed vector chunks ready for retrieval.
+    </p>
+    <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-6 text-sm text-slate-500 flex items-center gap-2">
+      Detailed step-by-step diagram available at
+      <a href={`${b}diagrams/ingestion`} class="text-indigo-600 hover:underline font-medium">Ingestion Pipeline diagram →</a>
+    </div>
+    <PrevNext
+      prev={{ label: "Containers (C4 L2)", href: `${b}architecture/containers` }}
+      next={{ label: "Retrieval Pipeline", href: `${b}architecture/pipelines/retrieval` }}
+    />
+  </div>
+</BaseLayout>

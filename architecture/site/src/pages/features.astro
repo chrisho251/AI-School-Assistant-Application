@@ -1,0 +1,124 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+const features = await getCollection("features");
+const teacherEntry = features.find((f) => f.data.audience === "teacher")!;
+const studentEntry = features.find((f) => f.data.audience === "student")!;
+
+const { Content: TeacherContent } = await render(teacherEntry);
+const { Content: StudentContent } = await render(studentEntry);
+---
+
+<BaseLayout
+  title="Features — ASAG"
+  description="What teachers and students can do inside ASAG: document notebooks, Q&A, slide generation, quiz creation, auto-grading, and locked-down exam mode."
+>
+  <!-- Page header -->
+  <div class="bg-diagram-frame py-14 px-6 border-b border-slate-200 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-3">Features</h1>
+    <p class="text-slate-500 text-sm max-w-xl mx-auto">
+      ASAG is designed around two roles. Teachers control content and review results;
+      students learn and demonstrate understanding.
+    </p>
+  </div>
+
+  <!-- Role tabs / anchors -->
+  <nav class="sticky top-[57px] z-40 bg-white border-b border-slate-200 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 flex gap-6 py-3 text-sm font-medium">
+      <a href="#teachers" class="text-indigo-600 hover:text-indigo-800 transition">For Teachers</a>
+      <a href="#students" class="text-slate-600 hover:text-indigo-600 transition">For Students</a>
+    </div>
+  </nav>
+
+  <div class="max-w-5xl mx-auto px-4 py-12 space-y-20">
+
+    <!-- Teachers section -->
+    <section id="teachers">
+      <div class="flex items-center gap-3 mb-8">
+        <span class="text-3xl">👩‍🏫</span>
+        <h2 class="text-2xl font-bold text-slate-800">For Teachers</h2>
+      </div>
+
+      <!-- Anchor sections teachers need -->
+      <div id="notebook"></div>
+      <div id="slides"></div>
+      <div id="assessment"></div>
+      <div id="exam"></div>
+
+      <div class="md-content">
+        <TeacherContent />
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-200 space-y-3">
+        <p class="text-sm text-slate-500">
+          See how these features map to the architecture:
+          <a href={`${b}architecture/pipelines/ingestion`} class="text-indigo-600 hover:underline">Ingestion</a>,
+          <a href={`${b}architecture/pipelines/assessment`} class="text-indigo-600 hover:underline">Assessment</a>,
+          <a href={`${b}architecture/pipelines/slide-generation`} class="text-indigo-600 hover:underline">Slide Generation</a>.
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-slate-400 font-medium uppercase tracking-wide">Related components:</span>
+          <a href={`${b}components/docling`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            Docling (parsing)
+          </a>
+          <a href={`${b}components/bge-m3`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            BGE-M3 (embeddings)
+          </a>
+          <a href={`${b}components/gemini-flash`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            Gemini Flash (generation)
+          </a>
+          <a href={`${b}components/groq-llama`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            Groq Llama (grading)
+          </a>
+          <a href={`${b}components/marp`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            Marp (slides)
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Students section -->
+    <section id="students">
+      <div class="flex items-center gap-3 mb-8">
+        <span class="text-3xl">👨‍🎓</span>
+        <h2 class="text-2xl font-bold text-slate-800">For Students</h2>
+      </div>
+
+      <div class="md-content">
+        <StudentContent />
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-200 space-y-3">
+        <p class="text-sm text-slate-500">
+          Explore how the Q&amp;A pipeline works:
+          <a href={`${b}architecture/pipelines/retrieval`} class="text-indigo-600 hover:underline">Retrieval pipeline</a>.
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-slate-400 font-medium uppercase tracking-wide">Related components:</span>
+          <a href={`${b}components/streamlit-lockdown-component`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            Lockdown Component
+          </a>
+          <a href={`${b}components/bge-reranker`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            BGE Reranker
+          </a>
+          <a href={`${b}components/e2b-sandbox`}
+             class="text-xs border border-slate-200 bg-white rounded-full px-3 py-1 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition">
+            E2B Code Sandbox
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</BaseLayout>

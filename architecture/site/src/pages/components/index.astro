@@ -1,0 +1,189 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+const allComponents = await getCollection("components");
+allComponents.sort((x, y) => x.data.title.localeCompare(y.data.title));
+
+// ── Category ordering ──────────────────────────────────────────────────────
+const CATEGORY_ORDER = [
+  "embedding", "reranker", "parsing", "infra", "storage",
+  "llm", "observability", "api", "ui", "security",
+];
+
+const categories = CATEGORY_ORDER.filter((cat) =>
+  allComponents.some((c) => c.data.category === cat)
+);
+
+const byCategory = Object.fromEntries(
+  categories.map((cat) => [cat, allComponents.filter((c) => c.data.category === cat)])
+);
+
+const uncategorised = allComponents.filter(
+  (c) => !CATEGORY_ORDER.includes(c.data.category ?? "")
+);
+
+// ── Category badge colours (matches ComponentLayout) ──────────────────────
+const categoryBadge: Record<string, string> = {
+  storage:      "bg-amber-100 text-amber-800 border-amber-300",
+  embedding:    "bg-sky-100 text-sky-800 border-sky-300",
+  llm:          "bg-rose-100 text-rose-800 border-rose-300",
+  infra:        "bg-slate-100 text-slate-700 border-slate-300",
+  parsing:      "bg-emerald-100 text-emerald-800 border-emerald-300",
+  reranker:     "bg-violet-100 text-violet-800 border-violet-300",
+  observability:"bg-orange-100 text-orange-800 border-orange-300",
+  ui:           "bg-teal-100 text-teal-800 border-teal-300",
+  api:          "bg-indigo-100 text-indigo-800 border-indigo-300",
+  security:     "bg-red-100 text-red-800 border-red-300",
+};
+
+// Colour dot for each category heading
+const categoryDot: Record<string, string> = {
+  storage:      "bg-amber-400",
+  embedding:    "bg-sky-400",
+  llm:          "bg-rose-400",
+  infra:        "bg-slate-400",
+  parsing:      "bg-emerald-400",
+  reranker:     "bg-violet-400",
+  observability:"bg-orange-400",
+  ui:           "bg-teal-400",
+  api:          "bg-indigo-400",
+  security:     "bg-red-400",
+};
+
+// ── Status badges ──────────────────────────────────────────────────────────
+const statusBadge: Record<string, string> = {
+  "in-use":  "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "planned": "bg-amber-100 text-amber-700 border-amber-200",
+};
+const statusLabel: Record<string, string> = {
+  "in-use":  "in use",
+  "planned": "planned",
+};
+
+// ── Summary counts ─────────────────────────────────────────────────────────
+const inUseCount   = allComponents.filter((c) => c.data.status === "in-use").length;
+const plannedCount = allComponents.filter((c) => c.data.status === "planned").length;
+const totalCount   = allComponents.length;
+const catCount     = categories.length + (uncategorised.length > 0 ? 1 : 0);
+---
+
+<BaseLayout
+  title="Components"
+  description="All 23 infrastructure, AI, and application components used in ASAG — grouped by category with status and pipeline tags."
+>
+  <div class="max-w-5xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Components</h1>
+    <p class="text-slate-500 mb-1">
+      Every named service, model, or library in the ASAG stack — grouped by category.
+      Click any card for implementation details, failure modes, and production alternatives.
+    </p>
+    <!-- Summary line (9C) -->
+    <p class="text-sm text-slate-400 mb-10">
+      <strong class="text-slate-600">{totalCount}</strong> components documented across{" "}
+      <strong class="text-slate-600">{catCount}</strong> categories —{" "}
+      <span class="text-emerald-600 font-medium">{inUseCount} in use</span>,{" "}
+      <span class="text-amber-600 font-medium">{plannedCount} planned</span>.
+    </p>
+
+    {categories.map((cat) => (
+      <section class="mb-12">
+        <!-- Category heading with colour dot (9B) -->
+        <div class="flex items-center gap-2 mb-4">
+          <span class={`w-2.5 h-2.5 rounded-full shrink-0 ${categoryDot[cat] ?? "bg-slate-300"}`} />
+          <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+            {cat.replace(/-/g, " ")}
+          </h2>
+          <span class="text-xs text-slate-300 font-normal">
+            ({byCategory[cat].length})
+          </span>
+        </div>
+
+        <!-- Card grid (9D) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {byCategory[cat].map((entry) => (
+            <a
+              href={`${b}components/${entry.id}`}
+              class="group flex flex-col gap-2.5 bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-indigo-200 transition"
+            >
+              <!-- Icon + title row -->
+              <div class="flex items-start gap-2.5">
+                {entry.data.icon && (
+                  <span class="text-xl shrink-0 mt-0.5">{entry.data.icon}</span>
+                )}
+                <p class="font-semibold text-slate-800 leading-snug group-hover:text-indigo-700 transition">
+                  {entry.data.title}
+                </p>
+              </div>
+
+              <!-- Badges row: category + status (9A, 9B) -->
+              <div class="flex flex-wrap gap-1.5">
+                <span class={`text-xs border rounded-full px-2 py-0.5 font-medium ${categoryBadge[entry.data.category] ?? categoryBadge["infra"]}`}>
+                  {entry.data.category}
+                </span>
+                {entry.data.status && (
+                  <span class={`text-xs border rounded-full px-2 py-0.5 font-medium ${statusBadge[entry.data.status]}`}>
+                    {statusLabel[entry.data.status]}
+                  </span>
+                )}
+              </div>
+
+              <!-- Pipeline tags -->
+              {entry.data.usedInPipeline && entry.data.usedInPipeline.length > 0 && (
+                <p class="text-xs text-slate-400">
+                  {entry.data.usedInPipeline.join(" · ")}
+                </p>
+              )}
+
+              <!-- Summary placeholder (9D — reserved, will populate when frontmatter keys are added) -->
+              {entry.data.summary && (
+                <p class="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                  {entry.data.summary}
+                </p>
+              )}
+            </a>
+          ))}
+        </div>
+      </section>
+    ))}
+
+    {uncategorised.length > 0 && (
+      <section class="mb-12">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-2.5 h-2.5 rounded-full shrink-0 bg-slate-300" />
+          <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">other</h2>
+          <span class="text-xs text-slate-300 font-normal">({uncategorised.length})</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {uncategorised.map((entry) => (
+            <a
+              href={`${b}components/${entry.id}`}
+              class="group flex flex-col gap-2.5 bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-indigo-200 transition"
+            >
+              <div class="flex items-start gap-2.5">
+                {entry.data.icon && (
+                  <span class="text-xl shrink-0 mt-0.5">{entry.data.icon}</span>
+                )}
+                <p class="font-semibold text-slate-800 leading-snug group-hover:text-indigo-700 transition">
+                  {entry.data.title}
+                </p>
+              </div>
+              {entry.data.status && (
+                <div class="flex flex-wrap gap-1.5">
+                  <span class={`text-xs border rounded-full px-2 py-0.5 font-medium ${statusBadge[entry.data.status]}`}>
+                    {statusLabel[entry.data.status]}
+                  </span>
+                </div>
+              )}
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+  </div>
+</BaseLayout>

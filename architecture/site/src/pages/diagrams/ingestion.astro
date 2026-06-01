@@ -1,0 +1,87 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import DiagramFrame from "../../components/DiagramFrame.astro";
+import Mermaid from "../../components/Mermaid.astro";
+import { getEntry, getCollection, render } from "astro:content";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+const entry = await getEntry("architecture", "ingestion");
+const { Content } = await render(entry!);
+
+const components = await getCollection("components");
+const related = components.filter((c) => c.data.usedInPipeline.includes("ingestion"));
+
+// Stage flow: 0 Persist → 1 Parse → 2 Chunk → 3 Embed → 4 Index
+const diagram = `flowchart LR
+  Upload["☁️ Stage 0\\nUpload to Storage"]
+  Parse["📄 Stage 1\\nLoad & Parse"]
+  Chunk["✂️ Stage 2\\nChunk"]
+  Embed["🧮 Stage 3\\nEmbed"]
+  Index["🗄️ Stage 4\\nIndex"]
+
+  Upload --> Parse
+  Parse --> Docling["Docling\\nPDF / DOCX"]
+  Parse --> Gemini["Gemini Flash\\nImage captions"]
+  Parse --> CodeParse["ast / nbformat\\nCode & Notebooks"]
+  Docling --> Chunk
+  Gemini --> Chunk
+  CodeParse --> Chunk
+  Chunk --> Embed
+  Embed --> TEI["TEI · BGE-M3\\n1024-dim dense + sparse"]
+  TEI --> Index
+  Index --> PG["pgvector\\nHNSW + GIN index"]
+  Index --> Sup["Supabase\\nsources.status = ready"]
+
+  click Upload href "${b}components/supabase" "Open Supabase page"
+  click Sup href "${b}components/supabase" "Open Supabase page"
+  click Docling href "${b}components/docling" "Open Docling page"
+  click Gemini href "${b}components/gemini-flash" "Open Gemini Flash page"
+  click TEI href "${b}components/tei" "Open TEI page"
+  click PG href "${b}components/pgvector" "Open pgvector page"`;
+---
+
+<BaseLayout
+  title="Ingestion Pipeline"
+  description="How ASAG turns a raw uploaded file into searchable chunks with vector embeddings."
+>
+  <div class="bg-diagram-frame py-12 px-6 border-b border-slate-200 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2">Ingestion Pipeline</h1>
+    <p class="text-slate-500 text-sm max-w-xl mx-auto">
+      Turns a raw file uploaded by a teacher into searchable chunks with vector embeddings —
+      asynchronously and idempotently.
+    </p>
+  </div>
+
+  <section class="max-w-6xl mx-auto px-4 py-10">
+    <DiagramFrame title="Ingestion Pipeline" subtitle="5 stages: persist → parse → chunk → embed → index. Click highlighted nodes to learn more.">
+      <Mermaid code={diagram} />
+    </DiagramFrame>
+  </section>
+
+  <!-- Full content from content/architecture/ingestion.md -->
+  <div class="md-content max-w-3xl mx-auto px-4 py-8">
+    <Content />
+  </div>
+
+  <!-- Components in this pipeline -->
+  {related.length > 0 && (
+    <section class="max-w-3xl mx-auto px-4 pb-16">
+      <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">
+        Components in this pipeline
+      </h2>
+      <div class="flex flex-wrap gap-3">
+        {related.map((c) => (
+          <a
+            href={`${b}components/${c.id}`}
+            class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm hover:shadow-md transition"
+          >
+            {c.data.icon && <span class="text-base">{c.data.icon}</span>}
+            {c.data.title}
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+</BaseLayout>

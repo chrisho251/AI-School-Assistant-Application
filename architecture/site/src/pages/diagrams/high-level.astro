@@ -1,0 +1,239 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import DiagramFrame from "../../components/DiagramFrame.astro";
+import StageBar from "../../components/StageBar.astro";
+import DiagramLegend from "../../components/DiagramLegend.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+// Node dimensions
+const NW = 160; // node width
+const NH = 50;  // node height
+const NR = 8;   // corner radius
+
+// Band y positions
+const B1Y = 30;   // Users
+const B2Y = 150;  // Frontend
+const B3Y = 260;  // API
+const B4Y = 370;  // App Services
+const B5Y = 490;  // AI layer
+const B6Y = 610;  // Data + Observability
+
+// Styles per layer
+const AMB  = { fill: "#fef3c7", stroke: "#d97706" };
+const SKY  = { fill: "#e0f2fe", stroke: "#0284c7" };
+const ROSE = { fill: "#fce7f3", stroke: "#be185d" };
+const VIO  = { fill: "#ede9fe", stroke: "#7c3aed" };
+const SLT  = { fill: "#f1f5f9", stroke: "#475569" };
+const ORG  = { fill: "#ffedd5", stroke: "#c2410c" };
+const GRP  = { fill: "none",    stroke: "#94a3b8" }; // group outline
+
+// Helper: node center x → rect x
+const rx = (cx: number) => cx - NW / 2;
+
+type NodeStyle = { fill: string; stroke: string };
+type NodeDef = { cx: number; cy: number; label: string; href?: string; style: NodeStyle; sub?: string };
+
+const nodes: NodeDef[] = [
+  // Band 1 — Users
+  { cx: 260, cy: B1Y, label: "Teacher",          style: AMB },
+  { cx: 550, cy: B1Y, label: "Student",           style: AMB },
+  // Band 2 — Frontend
+  { cx: 405, cy: B2Y, label: "Streamlit",         href: `${b}components/streamlit`, style: SKY, sub: "Web UI" },
+  // Band 3 — API
+  { cx: 405, cy: B3Y, label: "FastAPI",           href: `${b}components/fastapi`,   style: SKY, sub: "API Gateway" },
+  // Band 4 — App Services
+  { cx: 100, cy: B4Y, label: "Ingestion Worker",  style: SKY },
+  { cx: 310, cy: B4Y, label: "RAG Engine",        style: SKY },
+  { cx: 560, cy: B4Y, label: "Assessment Engine", style: SKY },
+  { cx: 800, cy: B4Y, label: "Studio Engine",     style: SKY },
+  // Band 5 — AI (self-hosted)
+  { cx: 140, cy: B5Y, label: "TEI · BGE-M3",      href: `${b}components/tei`,          style: ROSE, sub: "Embedding" },
+  { cx: 340, cy: B5Y, label: "TEI · Reranker",    href: `${b}components/bge-reranker`, style: ROSE, sub: "Reranker" },
+  // Band 5 — AI (external)
+  { cx: 560, cy: B5Y, label: "LiteLLM",           href: `${b}components/litellm`,      style: VIO,  sub: "Wrapper" },
+  { cx: 740, cy: B5Y, label: "Gemini Flash",      href: `${b}components/gemini-flash`, style: VIO,  sub: "Generator" },
+  { cx: 940, cy: B5Y, label: "Groq Llama",        href: `${b}components/groq-llama`,   style: VIO,  sub: "Judge" },
+  // Band 6 — Data
+  { cx: 140, cy: B6Y, label: "pgvector",          href: `${b}components/pgvector`,     style: SLT,  sub: "Vector + SQL" },
+  { cx: 360, cy: B6Y, label: "Supabase Storage",  href: `${b}components/supabase`,     style: SLT,  sub: "File store" },
+  { cx: 580, cy: B6Y, label: "Supabase Auth",     href: `${b}components/supabase`,     style: SLT,  sub: "JWT + RLS" },
+  // Band 6 — Observability
+  { cx: 880, cy: B6Y, label: "Langfuse",          href: `${b}components/langfuse`,     style: ORG,  sub: "Traces" },
+];
+
+// Arrows: [x1, y1, x2, y2]
+type Arrow = [number, number, number, number];
+const arrows: Arrow[] = [
+  // Teacher → Streamlit
+  [260, B1Y + NH, 380, B2Y],
+  // Student → Streamlit
+  [550, B1Y + NH, 430, B2Y],
+  // Streamlit → FastAPI
+  [405, B2Y + NH, 405, B3Y],
+  // FastAPI → each service (fan out)
+  [405, B3Y + NH, 100, B4Y],
+  [405, B3Y + NH, 310, B4Y],
+  [405, B3Y + NH, 560, B4Y],
+  [405, B3Y + NH, 800, B4Y],
+  // Ingestion Worker → TEI BGE-M3
+  [100, B4Y + NH, 140, B5Y],
+  // RAG Engine → TEI BGE-M3 + TEI Reranker
+  [310, B4Y + NH, 200, B5Y],
+  [310, B4Y + NH, 300, B5Y],
+  // RAG/Assessment/Studio → LiteLLM
+  [430, B4Y + NH, 540, B5Y],
+  // LiteLLM → Gemini
+  [640, B5Y + 25, 740, B5Y + 25],
+  // LiteLLM → Groq
+  [640, B5Y + 35, 900, B5Y + 35],
+  // App Services → pgvector
+  [200, B4Y + NH, 140, B6Y],
+  [310, B4Y + NH, 200, B6Y],
+  // App Services → Supabase Storage
+  [800, B4Y + NH, 360, B6Y],
+  // Services → Langfuse
+  [700, B4Y + NH, 860, B6Y],
+];
+
+const ARROW_COLOR = "#64748b";
+---
+
+<BaseLayout title="High-Level Architecture" description="One picture of the whole ASAG system — users, services, AI, and data.">
+  <!-- Page header -->
+  <div class="bg-diagram-frame py-12 px-6 border-b border-slate-200 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2">High-Level Architecture</h1>
+    <p class="text-slate-500 text-sm max-w-xl mx-auto">
+      One picture of the whole system. Click any highlighted node to open its component page.
+    </p>
+  </div>
+
+  <section class="max-w-6xl mx-auto px-4 py-10">
+    <DiagramFrame title="System Architecture" subtitle="Click any node to open its component page.">
+      <svg
+        viewBox="0 0 1100 700"
+        xmlns="http://www.w3.org/2000/svg"
+        class="w-full"
+        style="min-width:700px"
+        aria-label="ASAG high-level architecture diagram"
+      >
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill={ARROW_COLOR} />
+          </marker>
+        </defs>
+
+        <!-- Band labels -->
+        <text x="8" y={B1Y + 30} font-size="9" fill="#94a3b8" font-family="sans-serif" letter-spacing="0.05em">USERS</text>
+        <text x="8" y={B2Y + 30} font-size="9" fill="#94a3b8" font-family="sans-serif" letter-spacing="0.05em">UI</text>
+        <text x="8" y={B3Y + 30} font-size="9" fill="#94a3b8" font-family="sans-serif" letter-spacing="0.05em">API</text>
+        <text x="8" y={B4Y + 30} font-size="9" fill="#94a3b8" font-family="sans-serif" letter-spacing="0.05em">SERVICES</text>
+        <text x="8" y={B5Y + 30} font-size="9" fill="#94a3b8" font-family="sans-serif" letter-spacing="0.05em">AI</text>
+        <text x="8" y={B6Y + 30} font-size="9" fill="#94a3b8" font-family="sans-serif" letter-spacing="0.05em">DATA</text>
+
+        <!-- Group outline: Application Services -->
+        <rect
+          x={rx(100) - 10}
+          y={B4Y - 14}
+          width={rx(800) + NW - rx(100) + 20}
+          height={NH + 24}
+          rx="12"
+          fill={GRP.fill}
+          stroke={GRP.stroke}
+          stroke-width="1"
+          stroke-dasharray="5,3"
+        />
+
+        <!-- Group outline: AI self-hosted -->
+        <rect
+          x={rx(140) - 8}
+          y={B5Y - 14}
+          width={rx(340) + NW - rx(140) + 16}
+          height={NH + 24}
+          rx="10"
+          fill="none"
+          stroke="#be185d"
+          stroke-width="1"
+          stroke-dasharray="4,3"
+          opacity="0.4"
+        />
+        <text x={rx(140) - 6} y={B5Y - 18} font-size="8" fill="#be185d" font-family="sans-serif" opacity="0.7">self-hosted</text>
+
+        <!-- Group outline: AI external -->
+        <rect
+          x={rx(560) - 8}
+          y={B5Y - 14}
+          width={rx(940) + NW - rx(560) + 16}
+          height={NH + 24}
+          rx="10"
+          fill="none"
+          stroke="#7c3aed"
+          stroke-width="1"
+          stroke-dasharray="4,3"
+          opacity="0.4"
+        />
+        <text x={rx(560) - 6} y={B5Y - 18} font-size="8" fill="#7c3aed" font-family="sans-serif" opacity="0.7">external SaaS</text>
+
+        <!-- Arrows -->
+        {arrows.map(([x1, y1, x2, y2]) => (
+          <line
+            x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke={ARROW_COLOR}
+            stroke-width="1.5"
+            marker-end="url(#arrow)"
+            opacity="0.6"
+          />
+        ))}
+
+        <!-- Nodes -->
+        {nodes.map(({ cx, cy, label, href, style, sub }) => {
+          const x = rx(cx);
+          const inner = (
+            <>
+              <rect x={x} y={cy} width={NW} height={NH} rx={NR} fill={style.fill} stroke={style.stroke} stroke-width="1.5" class={href ? "cursor-pointer transition-all" : ""} />
+              <text x={cx} y={cy + (sub ? 20 : 28)} text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b" font-family="sans-serif">{label}</text>
+              {sub && <text x={cx} y={cy + 36} text-anchor="middle" font-size="9" fill="#64748b" font-family="sans-serif">{sub}</text>}
+            </>
+          );
+          return href ? (
+            <a href={href} class="group">
+              <rect x={x} y={cy} width={NW} height={NH} rx={NR} fill={style.fill} stroke={style.stroke} stroke-width="1.5" class="cursor-pointer" />
+              <rect x={x} y={cy} width={NW} height={NH} rx={NR} fill="transparent" stroke="#6366f1" stroke-width="0" class="cursor-pointer hover-ring" />
+              <text x={cx} y={cy + (sub ? 20 : 28)} text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b" font-family="sans-serif">{label}</text>
+              {sub && <text x={cx} y={cy + 36} text-anchor="middle" font-size="9" fill="#64748b" font-family="sans-serif">{sub}</text>}
+            </a>
+          ) : inner;
+        })}
+
+        <!-- Docling label inside Ingestion Worker -->
+        <text x="100" y={B4Y + NH + 14} text-anchor="middle" font-size="8" fill="#0284c7" font-family="sans-serif">
+          <a href={`${b}components/docling`}>↳ Docling</a>
+        </text>
+
+        <!-- Marp label inside Studio Engine -->
+        <text x="800" y={B4Y + NH + 14} text-anchor="middle" font-size="8" fill="#0284c7" font-family="sans-serif">
+          <a href={`${b}components/marp`}>↳ Marp</a>
+        </text>
+
+        <!-- BGE-M3 chip inside TEI node -->
+        <text x="140" y={B5Y + NH + 14} text-anchor="middle" font-size="8" fill="#be185d" font-family="sans-serif">
+          <a href={`${b}components/bge-m3`}>↳ BGE-M3</a>
+        </text>
+      </svg>
+    </DiagramFrame>
+
+    <StageBar stages={["Auth", "Route", "Retrieve", "Generate", "Persist", "Observe"]} />
+    <p class="text-center text-sm text-slate-500 mt-3 mb-4">
+      Click any highlighted node to learn about that component.
+    </p>
+    <DiagramLegend />
+  </section>
+</BaseLayout>
+
+<style>
+  a:hover rect {
+    stroke: #6366f1 !important;
+    stroke-width: 2 !important;
+  }
+</style>

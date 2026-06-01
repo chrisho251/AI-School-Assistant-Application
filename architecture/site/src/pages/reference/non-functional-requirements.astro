@@ -1,0 +1,301 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import PrevNext from "../../components/PrevNext.astro";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+---
+
+<BaseLayout
+  title="Non-functional Requirements"
+  description="Latency, throughput, availability, cost, and privacy targets for the ASAG learning build."
+>
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <Breadcrumbs />
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Non-functional Requirements</h1>
+    <p class="text-slate-500 mb-8 leading-relaxed max-w-2xl">
+      Targets for the learning build (free-tier, single school pilot). Numbers are sourced
+      from component operational-characteristics tables and
+      <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs">proposal.md</code>.
+      Production targets are reference points for upgrade planning only.
+    </p>
+
+    <!-- ── 1. Latency ─────────────────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="text-lg font-semibold text-slate-700 mb-1">1. Latency targets</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        Per-step latency for the online retrieval path (the critical path for student Q&A and quiz loading).
+        Ingestion is async and has no user-facing latency requirement.
+      </p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Step</th>
+              <th class="px-4 py-3 text-left">Learning build target</th>
+              <th class="px-4 py-3 text-left">Source</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Query embedding (TEI CPU)</td>
+              <td class="px-4 py-3 text-slate-500">~few ms (100–400 tokens/s throughput)</td>
+              <td class="px-4 py-3 text-slate-400">
+                <a href={`${b}components/bge-m3`} class="text-indigo-500 hover:underline">bge-m3 operational table</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Dense ANN search (HNSW)</td>
+              <td class="px-4 py-3 text-slate-500">p50 &lt; 10 ms</td>
+              <td class="px-4 py-3 text-slate-400">
+                <a href={`${b}components/pgvector`} class="text-indigo-500 hover:underline">pgvector operational table</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Sparse FTS search (GIN/ts_rank)</td>
+              <td class="px-4 py-3 text-slate-500">p50 &lt; 5 ms</td>
+              <td class="px-4 py-3 text-slate-400">
+                <a href={`${b}components/bm25-postgres-fts`} class="text-indigo-500 hover:underline">bm25-postgres-fts operational table</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Reranker (20 candidates, TEI CPU)</td>
+              <td class="px-4 py-3 text-slate-500">200–500 ms</td>
+              <td class="px-4 py-3 text-slate-400">
+                <a href={`${b}components/bge-reranker`} class="text-indigo-500 hover:underline">bge-reranker operational table</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">LLM generation (Gemini Flash, first token)</td>
+              <td class="px-4 py-3 text-slate-500">Best-effort, streamed — no hard target</td>
+              <td class="px-4 py-3 text-slate-400">Free-tier API</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700 font-medium">Full Q&A end-to-end</td>
+              <td class="px-4 py-3 text-slate-500 font-medium">p50 ~500 ms to first token (streaming)</td>
+              <td class="px-4 py-3 text-slate-400">Derived from step totals above</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">
+        Note: BGE-M3 embedding p50/p95 per batch not yet benchmarked — see
+        <a href={`${b}components/bge-m3`} class="underline">bge-m3 observability section</a>.
+      </p>
+    </section>
+
+    <!-- ── 2. Throughput / scale ───────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="text-lg font-semibold text-slate-700 mb-1">2. Throughput &amp; scale targets</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        Targets for the learning build. "Learning build" = single school, ~30-student pilot.
+        "Production" = school-district deployment (reference only, not yet validated).
+      </p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Metric</th>
+              <th class="px-4 py-3 text-left">Learning build</th>
+              <th class="px-4 py-3 text-left">Production reference</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Active users (MAU)</td>
+              <td class="px-4 py-3 text-slate-500">Up to 50</td>
+              <td class="px-4 py-3 text-slate-400">Up to 50k (Supabase Pro)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Concurrent quiz sessions</td>
+              <td class="px-4 py-3 text-slate-500">~30 simultaneous students</td>
+              <td class="px-4 py-3 text-slate-400">Scales with FastAPI workers</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Proctor POST requests (exam peak)</td>
+              <td class="px-4 py-3 text-slate-500">~150/exam (30 students × 5 events)</td>
+              <td class="px-4 py-3 text-slate-400">Negligible for FastAPI</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Ingestion jobs / month (Inngest steps)</td>
+              <td class="px-4 py-3 text-slate-500">Up to ~6k jobs (50k steps ÷ 8 steps/job)</td>
+              <td class="px-4 py-3 text-slate-400">arq (Redis) — no step quota</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Code sandbox executions / month</td>
+              <td class="px-4 py-3 text-slate-500">Up to ~12k (100 sandbox-hours × 30s/exec)</td>
+              <td class="px-4 py-3 text-slate-400">Docker-in-Docker (no quota)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">LLM requests / day (Gemini Flash)</td>
+              <td class="px-4 py-3 text-slate-500">Up to 1,500</td>
+              <td class="px-4 py-3 text-slate-400">Paid tier (no hard limit)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">LLM requests / day (Groq Llama judge)</td>
+              <td class="px-4 py-3 text-slate-500">Up to ~14,400</td>
+              <td class="px-4 py-3 text-slate-400">Paid tier</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 3. Availability ────────────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="text-lg font-semibold text-slate-700 mb-1">3. Availability</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        The learning build has no formal SLA. Targets below reflect free-tier platform behaviour.
+      </p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Component</th>
+              <th class="px-4 py-3 text-left">Learning build</th>
+              <th class="px-4 py-3 text-left">Notes</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Supabase Postgres</td>
+              <td class="px-4 py-3 text-slate-500">Best-effort (free tier pauses inactive projects)</td>
+              <td class="px-4 py-3 text-slate-400">Keep-alive ping or upgrade to Pro</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Supabase Auth</td>
+              <td class="px-4 py-3 text-slate-500">Best-effort (managed SaaS)</td>
+              <td class="px-4 py-3 text-slate-400">No mitigation without local session cache</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">TEI Embedding + Reranker</td>
+              <td class="px-4 py-3 text-slate-500">Self-hosted — restarts in ~5 s (warm) / ~60 s (cold)</td>
+              <td class="px-4 py-3 text-slate-400">Named volumes cache model weights</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Gemini Flash API</td>
+              <td class="px-4 py-3 text-slate-500">Best-effort (Google SLA applies to paid tier)</td>
+              <td class="px-4 py-3 text-slate-400">Groq as fallback judge model</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Langfuse (self-hosted)</td>
+              <td class="px-4 py-3 text-slate-500">Best-effort — outage is observability-only, no user impact</td>
+              <td class="px-4 py-3 text-slate-400">SDK buffers traces in memory</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 4. Cost targets ────────────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="text-lg font-semibold text-slate-700 mb-1">4. Cost targets</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        All components run on free tiers. Total cost for the learning build is $0/month
+        up to ~50 active users (source: proposal.md §10).
+      </p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Component</th>
+              <th class="px-4 py-3 text-left">Free-tier allowance</th>
+              <th class="px-4 py-3 text-left">Next upgrade</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Supabase</td>
+              <td class="px-4 py-3 text-slate-500">500 MB DB · 1 GB storage · 50k MAU</td>
+              <td class="px-4 py-3 text-slate-400">Pro: $25/month (8 GB DB, 100 GB storage)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Gemini 2.5 Flash</td>
+              <td class="px-4 py-3 text-slate-500">1,500 requests/day, 1M token context</td>
+              <td class="px-4 py-3 text-slate-400">~$0.075/M input tokens (paid tier)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Groq Llama 3.3 70B</td>
+              <td class="px-4 py-3 text-slate-500">~14,400 requests/day</td>
+              <td class="px-4 py-3 text-slate-400">Paid tier (per-token pricing)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">TEI Embedding + Reranker</td>
+              <td class="px-4 py-3 text-slate-500">$0 — self-hosted on same VM as FastAPI</td>
+              <td class="px-4 py-3 text-slate-400">GPU VM for higher throughput</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Inngest</td>
+              <td class="px-4 py-3 text-slate-500">50,000 steps/month</td>
+              <td class="px-4 py-3 text-slate-400">Paid tier or switch to arq (self-hosted)</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">E2B Code Sandbox</td>
+              <td class="px-4 py-3 text-slate-500">100 sandbox-hours/month</td>
+              <td class="px-4 py-3 text-slate-400">~$0.000225/sandbox-hour or Docker-in-Docker</td>
+            </tr>
+            <tr class="bg-slate-50">
+              <td class="px-4 py-3 font-semibold text-slate-700">Total</td>
+              <td class="px-4 py-3 font-semibold text-emerald-600">$0 / month</td>
+              <td class="px-4 py-3 text-slate-400">Up to ~50 active users</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 5. Privacy / compliance ────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="text-lg font-semibold text-slate-700 mb-1">5. Privacy &amp; compliance posture</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        Data isolation is enforced at the database layer (RLS). Supabase Cloud (EU region) is GDPR-compliant.
+      </p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left">Requirement</th>
+              <th class="px-4 py-3 text-left">Implementation</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Cross-tenant isolation</td>
+              <td class="px-4 py-3 text-slate-500">Postgres RLS on all 8 tenant-scoped tables; <code class="bg-slate-100 px-1 rounded text-xs">SET LOCAL app.org_id</code> per request</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Student data access</td>
+              <td class="px-4 py-3 text-slate-500">JWT claim scoping — students can only access notebooks they have been granted access to via <code class="bg-slate-100 px-1 rounded text-xs">notebook_acl</code></td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">PII in job payloads</td>
+              <td class="px-4 py-3 text-slate-500">Inngest events contain only IDs (source_id, notebook_id, org_id) — document text is fetched inside the worker step from Supabase Storage</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Encryption at rest</td>
+              <td class="px-4 py-3 text-slate-500">Supabase Cloud: AES-256 for Postgres and Storage</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Encryption in transit</td>
+              <td class="px-4 py-3 text-slate-500">TLS 1.2+ on all Supabase endpoints; HTTPS for all external API calls</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">GDPR</td>
+              <td class="px-4 py-3 text-slate-500">Supabase Cloud EU region available. Verify region assignment for school data before production deployment</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 text-slate-700">Student code execution</td>
+              <td class="px-4 py-3 text-slate-500">E2B microVM isolation — student code cannot access ASAG host filesystem or internal network</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <PrevNext
+      prev={{ label: "Security Model", href: `${b}reference/security-model` }}
+      next={{ label: "Runbook", href: `${b}reference/operational-runbook` }}
+    />
+  </div>
+</BaseLayout>

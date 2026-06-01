@@ -1,0 +1,78 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import DiagramFrame from "../../components/DiagramFrame.astro";
+import Mermaid from "../../components/Mermaid.astro";
+import { getEntry, getCollection, render } from "astro:content";
+
+const base = import.meta.env.BASE_URL;
+const b = base.endsWith("/") ? base : base + "/";
+
+const entry = await getEntry("architecture", "retrieval");
+const { Content } = await render(entry!);
+
+const components = await getCollection("components");
+const related = components.filter((c) => c.data.usedInPipeline.includes("retrieval"));
+
+// Flow: embed query → two parallel branches (dense + sparse) → RRF → reranker → top-k
+const diagram = `flowchart LR
+  Query["🔍 User query"]
+  EmbedQ["BGE-M3\\nEmbed query"]
+
+  Query --> EmbedQ
+  EmbedQ --> Dense["Dense search\\npgvector ANN\\ntop-30"]
+  EmbedQ --> Sparse["Sparse search\\nBM25 / FTS\\ntop-30"]
+  Dense --> RRF["RRF Merge\\nscore = 1/(k+rank)\\ntop-20"]
+  Sparse --> RRF
+  RRF --> Rerank["bge-reranker-v2-m3\\ncross-encoder\\n20 → 5-8"]
+  Rerank --> TopK["📋 Top 5-8 chunks\\n+ source citations"]
+
+  click EmbedQ href "${b}components/bge-m3" "Open BGE-M3 page"
+  click Dense href "${b}components/pgvector" "Open pgvector page"
+  click Sparse href "${b}components/pgvector" "Open pgvector page"
+  click Rerank href "${b}components/bge-reranker" "Open reranker page"`;
+---
+
+<BaseLayout
+  title="Retrieval Pipeline"
+  description="How ASAG retrieves the most relevant chunks — hybrid search with RRF and cross-encoder reranking."
+>
+  <div class="bg-diagram-frame py-12 px-6 border-b border-slate-200 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2">Retrieval Pipeline</h1>
+    <p class="text-slate-500 text-sm max-w-xl mx-auto">
+      Online, shared by Q&amp;A, quiz generation, and slide generation.
+      Returns the 5–8 most relevant chunks for any query in a given notebook.
+    </p>
+  </div>
+
+  <section class="max-w-6xl mx-auto px-4 py-10">
+    <DiagramFrame
+      title="Hybrid Retrieval + Reranking"
+      subtitle="Dense and sparse branches run in parallel, fused by Reciprocal Rank Fusion, then refined by a cross-encoder."
+    >
+      <Mermaid code={diagram} />
+    </DiagramFrame>
+  </section>
+
+  <div class="md-content max-w-3xl mx-auto px-4 py-8">
+    <Content />
+  </div>
+
+  {related.length > 0 && (
+    <section class="max-w-3xl mx-auto px-4 pb-16">
+      <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">
+        Components in this pipeline
+      </h2>
+      <div class="flex flex-wrap gap-3">
+        {related.map((c) => (
+          <a
+            href={`${b}components/${c.id}`}
+            class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm hover:shadow-md transition"
+          >
+            {c.data.icon && <span class="text-base">{c.data.icon}</span>}
+            {c.data.title}
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+</BaseLayout>

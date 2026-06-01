@@ -1,0 +1,65 @@
+---
+interface Side {
+  name: string;
+  tier: string;
+  pros: string[];
+  cons?: string[];
+  why_better?: string;
+}
+interface Props {
+  current: Side;
+  alternative: Side & { why_better: string };
+}
+const { current, alternative } = Astro.props;
+---
+
+<div class="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+  <!-- Current (learning build) -->
+  <div class="border border-emerald-200 bg-emerald-50 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-3">
+      <span class="font-semibold text-slate-800 text-sm">{current.name}</span>
+      <span class="text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full px-2.5 py-0.5 font-medium">
+        {current.tier}
+      </span>
+    </div>
+    <ul class="space-y-1.5 mb-3">
+      {current.pros.map((p) => (
+        <li class="flex gap-2 text-sm text-slate-700">
+          <span class="text-emerald-500 shrink-0 mt-0.5">✓</span>
+          {p}
+        </li>
+      ))}
+    </ul>
+    {current.cons && current.cons.length > 0 && (
+      <ul class="space-y-1.5 border-t border-emerald-200 pt-3 mt-3">
+        {current.cons.map((c) => (
+          <li class="flex gap-2 text-sm text-slate-500">
+            <span class="text-slate-400 shrink-0 mt-0.5">–</span>
+            {c}
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+
+  <!-- Production alternative -->
+  <div class="border border-indigo-200 bg-indigo-50 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-3">
+      <span class="font-semibold text-slate-800 text-sm">{alternative.name}</span>
+      <span class="text-xs bg-indigo-100 text-indigo-700 border border-indigo-300 rounded-full px-2.5 py-0.5 font-medium">
+        {alternative.tier}
+      </span>
+    </div>
+    <ul class="space-y-1.5 mb-4">
+      {alternative.pros.map((p) => (
+        <li class="flex gap-2 text-sm text-slate-700">
+          <span class="text-indigo-500 shrink-0 mt-0.5">✓</span>
+          {p}
+        </li>
+      ))}
+    </ul>
+    <p class="text-xs leading-relaxed text-indigo-800 bg-indigo-100 border border-indigo-200 rounded-lg p-3">
+      <span class="font-semibold">Why switch: </span>{alternative.why_better}
+    </p>
+  </div>
+</div>
