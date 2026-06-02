@@ -27,13 +27,30 @@ import uuid
 
 from psycopg_pool import AsyncConnectionPool
 
+from asag.config import get_settings
+from asag.core.embeddings import EmbeddingClient
 from asag.core.storage import StorageBackend
 from asag.ingestion import chunkers as chunker_registry
 from asag.ingestion import loaders as loader_registry
 from asag.ingestion.repository import ChunkRepository, SourceRepository
-from asag.models.ingestion import ContentType, IngestResult
+from asag.models.ingestion import Chunk, ContentType, IngestResult
 
 log = logging.getLogger(__name__)
+
+
+async def _embed_chunks(
+    chunks: list[Chunk],
+    client: EmbeddingClient,
+    *,
+    batch_size: int = 32,
+) -> None:
+    """Embed all chunks in batches; mutates chunks in-place."""
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i : i + batch_size]
+        results = await client.embed_texts([c.content for c in batch])
+        for chunk, result in zip(batch, results, strict=True):
+            chunk.embedding = result.dense
+            chunk.sparse_vector = result.sparse if result.sparse else None
 
 
 async def ingest_source(
@@ -42,6 +59,7 @@ async def ingest_source(
     pool: AsyncConnectionPool,
     storage: StorageBackend,
     chunker_name: str = "semantic",
+    embedding_client: EmbeddingClient | None = None,
 ) -> IngestResult:
     """Run the full ingestion pipeline for one source.
 
@@ -96,6 +114,11 @@ async def ingest_source(
             notebook_id = uuid.UUID(str(source["notebook_id"]))
             chunks = chunker.chunk(elements, source_id=source_id, notebook_id=notebook_id)
             log.info("Chunker produced %d chunks for source %s", len(chunks), source_id)
+
+            # 7b. Embed chunks (dense + sparse) in batches of 32
+            _client = embedding_client or EmbeddingClient(get_settings().tei_embed_url)
+            await _embed_chunks(chunks, _client)
+            log.info("Embedded %d chunks for source %s", len(chunks), source_id)
 
             # 8. Delete old chunks (re-ingestion case)
             deleted = await chunk_repo.delete_by_source(source_id)

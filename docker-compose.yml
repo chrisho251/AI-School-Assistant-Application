@@ -20,26 +20,28 @@ services:
 
   tei-embeddings:
     # BGE-M3 (1024d, dense+sparse, 100+ langs)
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
     container_name: asag_tei_embed
-    command: ["--model-id", "BAAI/bge-m3", "--port", "80"]
+    command: ["--model-id", "BAAI/bge-m3", "--revision", "main", "--max-batch-tokens", "2048", "--auto-truncate", "--port", "80"]
     ports:
       - "8080:80"
     volumes:
       - asag_tei_cache:/data
     environment:
       HF_HOME: /data
+      HF_ENDPOINT: https://huggingface.co
 
   tei-reranker:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
     container_name: asag_tei_rerank
-    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--port", "80"]
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--revision", "main", "--port", "80"]
     ports:
       - "8081:80"
     volumes:
       - asag_tei_cache:/data
     environment:
       HF_HOME: /data
+      HF_ENDPOINT: https://huggingface.co
 
   # Langfuse (optional, turn on from Phase 9)
   # langfuse:

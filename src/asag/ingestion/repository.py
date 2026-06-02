@@ -75,7 +75,7 @@ class ChunkRepository:
             return cur.rowcount or 0
 
     async def insert_batch(self, chunks: list[Chunk]) -> int:
-        """Bulk-insert chunks. Returns number of rows inserted."""
+        """Bulk-insert chunks including embedding and sparse_vector if populated."""
         if not chunks:
             return 0
 
@@ -89,6 +89,9 @@ class ChunkRepository:
                 c.content_type.value,
                 c.content,
                 json.dumps(c.metadata),
+                # pgvector literal string "[f1,f2,...]"; NULL if not yet embedded
+                ("[" + ",".join(map(str, c.embedding)) + "]") if c.embedding is not None else None,
+                json.dumps(c.sparse_vector) if c.sparse_vector is not None else None,
             )
             for c in chunks
         ]
@@ -98,11 +101,13 @@ class ChunkRepository:
                 """
                 INSERT INTO chunks
                     (id, source_id, notebook_id, ordinal, page_number,
-                     content_type, content, metadata)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                     content_type, content, metadata, embedding, sparse_vector)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::vector, %s::jsonb)
                 ON CONFLICT (source_id, ordinal) DO UPDATE
-                    SET content  = EXCLUDED.content,
-                        metadata = EXCLUDED.metadata
+                    SET content       = EXCLUDED.content,
+                        metadata      = EXCLUDED.metadata,
+                        embedding     = EXCLUDED.embedding,
+                        sparse_vector = EXCLUDED.sparse_vector
                 """,
                 rows,
             )
