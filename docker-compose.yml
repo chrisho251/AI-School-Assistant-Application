@@ -41,7 +41,7 @@ services:
     environment:
       HF_HOME: /data
 
-  # Langfuse (optional, bật từ Phase 9)
+  # Langfuse (optional, turn on from Phase 9)
   # langfuse:
   #   image: langfuse/langfuse:latest
   #   ports: ["3000:3000"]

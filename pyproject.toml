@@ -71,6 +71,10 @@ exclude = [".venv", "__pycache__", "*.sql"]
 select = ["E", "F", "I", "B", "UP", "SIM", "ARG"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+# Test files: @patch injects mock args that aren't always referenced directly
+"tests/**/*.py" = ["ARG001", "ARG002"]
+
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
 
@@ -78,6 +82,14 @@ force-sort-within-sections = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --strict-markers"
+markers = [
+    "integration: marks tests that hit real external services (Postgres, TEI); deselect with -m 'not integration'",
+]
+filterwarnings = [
+    # LiteLLM internal bug: LoggingWorker leaves unawaited coroutines when the
+    # asyncio event loop closes at end of each test. Not our code — suppress it.
+    "ignore:coroutine 'Logging.async_success_handler' was never awaited:RuntimeWarning",
+]
 
 [tool.mypy]
 python_version = "3.12"
