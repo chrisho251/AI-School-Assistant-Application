@@ -96,7 +96,8 @@ async def benchmark_file(
 # ---------------------------------------------------------------------------
 
 
-def pX(values: list[float], pct: float) -> float:
+def _pct(values: list[float], pct: float) -> float:
+    """Return the *pct* percentile (0.0–1.0) of *values*."""
     s = sorted(values)
     idx = max(0, int(pct * len(s)) - 1)
     return s[idx]
@@ -198,7 +199,7 @@ async def main(paths: list[Path]) -> None:
             label,
             f"{min(times):.0f}",
             f"{statistics.median(times):.0f}",
-            f"{pX(times, 0.95):.0f}",
+            f"{_pct(times, 0.95):.0f}",
             f"{max(times):.0f}",
         )
 

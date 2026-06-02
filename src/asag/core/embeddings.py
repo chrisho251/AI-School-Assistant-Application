@@ -39,7 +39,9 @@ class EmbeddingClient:
 
     def __init__(self, base_url: str, *, timeout: float = 30.0) -> None:
         self._base = base_url.rstrip("/")
-        self._timeout = timeout
+        # Single client shared across all embed_texts calls — avoids opening a new
+        # TCP connection for every batch of 32 chunks during ingestion.
+        self._http = httpx.AsyncClient(timeout=timeout)
 
     async def embed_texts(
         self,
@@ -63,34 +65,33 @@ class EmbeddingClient:
         if not texts:
             return []
 
-        async with httpx.AsyncClient(timeout=self._timeout) as http:
-            if return_sparse:
-                dense_resp, sparse_resp = await asyncio.gather(
-                    http.post(f"{self._base}/embed", json={"inputs": texts}),
-                    http.post(f"{self._base}/embed_sparse", json={"inputs": texts}),
-                )
-                dense_resp.raise_for_status()
-                dense_vecs: list[list[float]] = dense_resp.json()
+        http = self._http  # reuse shared client — connection pool survives across batches
+        if return_sparse:
+            dense_resp, sparse_resp = await asyncio.gather(
+                http.post(f"{self._base}/embed", json={"inputs": texts}),
+                http.post(f"{self._base}/embed_sparse", json={"inputs": texts}),
+            )
+            dense_resp.raise_for_status()
+            dense_vecs: list[list[float]] = dense_resp.json()
 
-                # 424 = model/backend doesn't support sparse (e.g. ONNX without sparse head)
-                if sparse_resp.status_code == 424:
-                    log.warning(
-                        "TEI /embed_sparse returned 424 — sparse not supported by this "
-                        "model backend; storing dense-only embeddings."
-                    )
-                    sparses: list[dict[str, float]] = [{} for _ in texts]
-                else:
-                    sparse_resp.raise_for_status()
-                    raw_sparse: list[list[dict[str, Any]]] = sparse_resp.json()
-                    sparses = [
-                        {str(tok["index"]): float(tok["value"]) for tok in toks}
-                        for toks in raw_sparse
-                    ]
+            # 424 = model/backend doesn't support sparse (e.g. ONNX without sparse head)
+            if sparse_resp.status_code == 424:
+                log.warning(
+                    "TEI /embed_sparse returned 424 — sparse not supported by this "
+                    "model backend; storing dense-only embeddings."
+                )
+                sparses: list[dict[str, float]] = [{} for _ in texts]
             else:
-                resp = await http.post(f"{self._base}/embed", json={"inputs": texts})
-                resp.raise_for_status()
-                dense_vecs = resp.json()
-                sparses = [{} for _ in texts]
+                sparse_resp.raise_for_status()
+                raw_sparse: list[list[dict[str, Any]]] = sparse_resp.json()
+                sparses = [
+                    {str(tok["index"]): float(tok["value"]) for tok in toks} for toks in raw_sparse
+                ]
+        else:
+            resp = await http.post(f"{self._base}/embed", json={"inputs": texts})
+            resp.raise_for_status()
+            dense_vecs = resp.json()
+            sparses = [{} for _ in texts]
 
         log.debug("Embedded %d texts (return_sparse=%s)", len(texts), return_sparse)
         return [

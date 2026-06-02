@@ -34,7 +34,7 @@ build/
 
 # Data / models / logs
 data/
-models/
+/models/            # root-level ML weight directory only (src/asag/models/ is source code)
 logs/
 *.log
 *.sqlite
