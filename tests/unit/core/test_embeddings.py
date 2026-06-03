@@ -32,17 +32,11 @@ def _resp(data: object) -> MagicMock:
     return r
 
 
-def _mock_http_ctx(side_effects: list[object]) -> MagicMock:
-    """Return a context-manager mock for httpx.AsyncClient.
-
-    *side_effects* is the list of values returned by successive ``post`` calls.
-    """
+def _make_mock_http(side_effects: list[object]) -> AsyncMock:
+    """AsyncMock HTTP client whose post() returns successive *side_effects* on await."""
     mock_http = AsyncMock()
     mock_http.post.side_effect = [_resp(d) for d in side_effects]
-    ctx = MagicMock()
-    ctx.__aenter__ = AsyncMock(return_value=mock_http)
-    ctx.__aexit__ = AsyncMock(return_value=False)
-    return ctx, mock_http
+    return mock_http
 
 
 # ---------------------------------------------------------------------------
@@ -52,8 +46,8 @@ def _mock_http_ctx(side_effects: list[object]) -> MagicMock:
 
 async def test_embed_texts_shape_with_sparse() -> None:
     """Returns one EmbeddingResult per input; dense shape and sparse dict correct."""
-    ctx, _ = _mock_http_ctx([FAKE_DENSE, FAKE_SPARSE_RAW])
-    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=ctx):
+    mock_http = _make_mock_http([FAKE_DENSE, FAKE_SPARSE_RAW])
+    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=mock_http):
         client = EmbeddingClient("http://localhost:8080")
         results = await client.embed_texts(["hello", "world"])
 
@@ -66,8 +60,8 @@ async def test_embed_texts_shape_with_sparse() -> None:
 
 async def test_embed_texts_no_sparse() -> None:
     """return_sparse=False → single /embed call, sparse dicts are empty."""
-    ctx, mock_http = _mock_http_ctx([FAKE_DENSE])
-    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=ctx):
+    mock_http = _make_mock_http([FAKE_DENSE])
+    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=mock_http):
         client = EmbeddingClient("http://localhost:8080")
         results = await client.embed_texts(["hello", "world"], return_sparse=False)
 
@@ -92,12 +86,10 @@ async def test_embed_texts_http_error_propagates() -> None:
         request=MagicMock(),
         response=MagicMock(),
     )
-    ctx, mock_http = MagicMock(), AsyncMock()
+    mock_http = AsyncMock()
     mock_http.post.return_value = bad
-    ctx.__aenter__ = AsyncMock(return_value=mock_http)
-    ctx.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=ctx):
+    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=mock_http):
         client = EmbeddingClient("http://localhost:8080")
         with pytest.raises(httpx.HTTPStatusError):
             await client.embed_texts(["hello"], return_sparse=False)
@@ -108,8 +100,9 @@ async def test_embed_texts_preserves_order() -> None:
     dense_a = [[0.1] * 1024]
     dense_b = [[0.9] * 1024]
     combined = [dense_a[0], dense_b[0]]
-    ctx, _ = _mock_http_ctx([combined, [[], []]])  # sparse endpoint returns one list per text
-    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=ctx):
+    # sparse endpoint returns one list per text
+    mock_http = _make_mock_http([combined, [[], []]])
+    with patch("asag.core.embeddings.httpx.AsyncClient", return_value=mock_http):
         client = EmbeddingClient("http://localhost:8080")
         results = await client.embed_texts(["a", "b"])
 
