@@ -1,8 +1,5 @@
 """LiteLLM wrapper — single interface for all LLM calls.
 
-Session 2C: chat_sync() + async chat() with multimodal (image) support.
-Session 5A will add: astream_chat(), structured_output(), @traced decorator.
-
 All provider API keys are pushed to os.environ at import time so LiteLLM can
 find them whether they came from .env or the process environment.
 """
@@ -10,11 +7,14 @@ find them whether they came from .env or the process environment.
 from __future__ import annotations
 
 import base64
+from collections.abc import AsyncGenerator
 import logging
 import os
+import re
 from typing import Any
 
 import litellm
+from pydantic import BaseModel
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from asag.config import get_settings
@@ -29,8 +29,8 @@ litellm.suppress_debug_info = True
 # RuntimeWarning: coroutine 'Logging.async_success_handler' was never awaited.
 litellm.success_callback = []
 litellm.failure_callback = []
-litellm._async_success_callback = []  # type: ignore[attr-defined]
-litellm._async_failure_callback = []  # type: ignore[attr-defined]
+litellm._async_success_callback = []
+litellm._async_failure_callback = []
 
 
 def _init_api_keys() -> None:
@@ -137,6 +137,14 @@ def chat_sync(
 # Async interface (used by RAG Q&A, assessment — Session 5A+)                 #
 # --------------------------------------------------------------------------- #
 
+_JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", re.DOTALL)
+
+
+def _strip_fence(text: str) -> str:
+    """Remove markdown code fences from JSON responses if present."""
+    m = _JSON_FENCE_RE.match(text.strip())
+    return m.group(1) if m else text
+
 
 @_retry
 async def chat(
@@ -146,13 +154,96 @@ async def chat(
     images: list[ImagePayload] | None = None,
     temperature: float = 0.2,
 ) -> str:
-    """Non-blocking LLM call — use inside async request handlers."""
+    """Non-blocking LLM call — use inside async request handlers.
+
+    Args:
+        messages:    Standard OpenAI-format messages list.
+        model:       LiteLLM model string e.g. "gemini/gemini-2.5-flash".
+        images:      Optional list of (bytes, mime_type) to attach as vision input.
+        temperature: Sampling temperature.
+
+    Returns:
+        The assistant message content as a plain string.
+    """
     msgs = _build_messages(messages, images)
     log.debug("chat model=%s images=%d", model, len(images or []))
     response = await litellm.acompletion(model=model, messages=msgs, temperature=temperature)
     return str(response.choices[0].message.content)
 
 
-# TODO Session 5A: astream_chat() — yields token chunks for SSE
-# TODO Session 5A: structured_output(response_schema) — Pydantic model output
-# TODO Session 9A: @traced decorator — Langfuse observability hook
+async def astream_chat(
+    messages: list[dict[str, Any]],
+    model: str,
+    *,
+    images: list[ImagePayload] | None = None,
+    temperature: float = 0.2,
+) -> AsyncGenerator[str, None]:
+    """Stream LLM response token-by-token for SSE delivery.
+
+    Args:
+        messages:    Standard OpenAI-format messages list.
+        model:       LiteLLM model string.
+        images:      Optional vision attachments.
+        temperature: Sampling temperature.
+
+    Yields:
+        Non-empty token strings as they arrive from the model.
+
+    Raises:
+        httpx.HTTPStatusError / litellm exceptions on provider errors.
+    """
+    msgs = _build_messages(messages, images)
+    log.debug("astream_chat model=%s images=%d", model, len(images or []))
+    response = await litellm.acompletion(
+        model=model, messages=msgs, temperature=temperature, stream=True
+    )
+    async for chunk in response:
+        delta = chunk.choices[0].delta.content
+        if delta:
+            yield delta
+
+
+@_retry
+async def structured_output[T: BaseModel](
+    messages: list[dict[str, Any]],
+    model: str,
+    response_schema: type[T],
+    *,
+    temperature: float = 0.1,
+) -> T:
+    """Call LLM and parse the JSON response as a Pydantic model.
+
+    Args:
+        messages:        Standard OpenAI-format messages list.
+        model:           LiteLLM model string.
+        response_schema: Pydantic BaseModel subclass to parse into.
+        temperature:     Lower temperature for structured tasks.
+
+    Returns:
+        An instance of *response_schema* validated from the model's JSON output.
+
+    Raises:
+        ValueError:            If the model returns no text content (e.g. tool-call only mode).
+        pydantic.ValidationError: If the model returns invalid or unexpected JSON.
+    """
+    log.debug("structured_output model=%s schema=%s", model, response_schema.__name__)
+    response = await litellm.acompletion(
+        model=model,
+        messages=messages,
+        response_format=response_schema,
+        temperature=temperature,
+    )
+    content = response.choices[0].message.content
+    if content is None:
+        # Some backends return structured data in .parsed / tool_calls rather than
+        # .content — raise explicitly so the caller gets a clear error rather than
+        # a confusing "invalid JSON: 'None'" further down.
+        raise ValueError(
+            f"structured_output: model returned no text content "
+            f"(schema={response_schema.__name__}, model={model})"
+        )
+    raw = _strip_fence(content)
+    return response_schema.model_validate_json(raw)
+
+
+# TODO D09: @traced decorator — Langfuse observability hook
