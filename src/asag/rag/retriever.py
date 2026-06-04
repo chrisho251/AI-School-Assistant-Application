@@ -14,6 +14,7 @@ import logging
 from typing import Any
 import uuid
 
+import httpx
 from psycopg_pool import AsyncConnectionPool
 
 from asag.core.embeddings import EmbeddingClient
@@ -285,11 +286,18 @@ async def retrieve(
     if not candidates:
         return []
 
-    rerank_results = await rerank_client.rerank(
-        query,
-        [c.content for c in candidates],
-        top_n=k_final,
-    )
+    try:
+        rerank_results = await rerank_client.rerank(
+            query,
+            [c.content for c in candidates],
+            top_n=k_final,
+        )
+    except httpx.HTTPError as exc:
+        # Reranker unavailable (e.g. TEI down / OOM on a CPU dev box): degrade to
+        # hybrid-only rather than failing the whole query. Quality is lower but the
+        # RRF ranking is still relevant. Bring the reranker back up for full quality.
+        log.warning("Reranker unavailable (%s); falling back to hybrid top-%d", exc, k_final)
+        return candidates[:k_final]
 
     # Guard against a desync between candidates and reranker indices: a malformed
     # response with an out-of-range index would otherwise raise an opaque IndexError.

@@ -42,7 +42,7 @@ async def _embed_chunks(
     chunks: list[Chunk],
     client: EmbeddingClient,
     *,
-    batch_size: int = 32,
+    batch_size: int = 16,
 ) -> None:
     """Embed all chunks in batches; mutates chunks in-place."""
     for i in range(0, len(chunks), batch_size):
@@ -115,9 +115,13 @@ async def ingest_source(
             chunks = chunker.chunk(elements, source_id=source_id, notebook_id=notebook_id)
             log.info("Chunker produced %d chunks for source %s", len(chunks), source_id)
 
-            # 7b. Embed chunks (dense + sparse) in batches of 32
-            _client = embedding_client or EmbeddingClient(get_settings().tei_embed_url)
-            await _embed_chunks(chunks, _client)
+            # 7b. Embed chunks (dense + sparse). Use the configured TEI timeout +
+            # batch size — CPU embedding of a large batch otherwise hits ReadTimeout.
+            cfg = get_settings()
+            _client = embedding_client or EmbeddingClient(
+                cfg.tei_embed_url, timeout=cfg.tei_timeout
+            )
+            await _embed_chunks(chunks, _client, batch_size=cfg.tei_embed_batch_size)
             log.info("Embedded %d chunks for source %s", len(chunks), source_id)
 
             # 8. Delete old chunks (re-ingestion case)
@@ -137,6 +141,11 @@ async def ingest_source(
 
         except Exception as exc:
             log.exception("Ingestion failed for source %s: %s", source_id, exc)
-            await source_repo.update_status(source_id, "failed", error_message=str(exc))
+            # str(exc) is empty for some exception types (e.g. bare KeyError/IndexError);
+            # fall back to the class name so the stored error is never blank.
+            detail = str(exc) or repr(exc) or type(exc).__name__
+            await source_repo.update_status(
+                source_id, "failed", error_message=f"{type(exc).__name__}: {detail}"
+            )
             await conn.commit()
             raise

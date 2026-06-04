@@ -15,7 +15,15 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from docling.datamodel.document import DoclingDocument  # type: ignore[attr-defined]
 from docling.document_converter import DocumentConverter
+
+# PictureItem is matched by isinstance to skip embedded images; fall back gracefully
+# if Docling restructures its internals in a future release.
+try:
+    from docling.datamodel.document import PictureItem  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover
+    PictureItem = None  # type: ignore[assignment,misc]
 
 from asag.ingestion.loaders.base import Loader
 from asag.models.ingestion import ContentType, Element
@@ -55,20 +63,30 @@ class PdfLoader(Loader):
         return elements
 
     # ------------------------------------------------------------------ #
-    # Internal helpers (duck-typed so mock objects work in unit tests)    #
+    # Internal helpers                                                     #
     # ------------------------------------------------------------------ #
 
-    def _extract_elements(self, doc: Any) -> Iterator[Element]:
-        """Yield Elements from a Docling DoclingDocument."""
+    def _extract_elements(self, doc: DoclingDocument) -> Iterator[Element]:
+        """Yield Elements from a Docling DoclingDocument.
+
+        Skip PictureItem explicitly — in Docling ≥ 2.x PictureItem also has
+        export_to_markdown() but requires ``doc`` as a positional argument, so
+        plain duck-typing on that method would raise TypeError. Tables still use
+        duck-typing so unit-test mocks (MagicMock with export_to_markdown set)
+        continue to work without needing spec=TableItem.
+        """
         for item, _level in doc.iterate_items():
+            # Skip embedded images — standalone PNG/JPG is handled by ImageLoader.
+            if PictureItem is not None and isinstance(item, PictureItem):
+                continue
             if self._is_table(item):
                 yield from self._table_element(item)
             elif self._is_text(item):
                 yield from self._text_element(item)
-            # figures / other types: skip for POC
 
     @staticmethod
     def _is_table(item: Any) -> bool:
+        """True if *item* has export_to_markdown — Docling TableItem marker."""
         return callable(getattr(item, "export_to_markdown", None))
 
     @staticmethod
@@ -84,6 +102,7 @@ class PdfLoader(Loader):
         return None
 
     def _table_element(self, item: Any) -> Iterator[Element]:
+        # doc arg is optional for TableItem (Docling ≥ 2.x); omit for simplicity.
         md = item.export_to_markdown()
         if md.strip():
             yield Element(
@@ -94,10 +113,12 @@ class PdfLoader(Loader):
             )
 
     def _text_element(self, item: Any) -> Iterator[Element]:
-        text = item.text.strip()
+        text = getattr(item, "text", None)
+        if not isinstance(text, str) or not text.strip():
+            return
         label = str(getattr(item, "label", "text"))
         yield Element(
-            content=text,
+            content=text.strip(),
             content_type=ContentType.text,
             page_number=self._page_number(item),
             metadata={"label": label},

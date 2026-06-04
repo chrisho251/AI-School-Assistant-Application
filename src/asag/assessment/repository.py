@@ -12,6 +12,7 @@ import logging
 from typing import Any
 import uuid
 
+from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from asag.models.question import (
@@ -321,3 +322,120 @@ class AssessmentRepository:
         """Run a single autocommit statement on a pooled connection."""
         async with self.pool.connection() as conn:
             await conn.execute(sql, params)
+
+
+class AssessmentApiRepository:
+    """RLS-scoped quiz/attempt access for the API layer.
+
+    Unlike ``AssessmentRepository`` (pool-based, service role for generation/grading),
+    this works on a single request connection so all reads/writes are filtered by the
+    DB policies. The student/teacher boundary is therefore enforced in Postgres, not
+    just the route.
+
+    Args:
+        db: Request connection from ``get_db`` (role ``asag_app`` + RLS GUCs set).
+    """
+
+    def __init__(self, db: AsyncConnection) -> None:
+        self.db = db
+
+    async def list_quizzes(self, notebook_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Return visible quizzes for a notebook (RLS filters by notebook access)."""
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "SELECT id, notebook_id, title, status FROM quizzes "
+                "WHERE notebook_id = %s ORDER BY created_at DESC",
+                (str(notebook_id),),
+            )
+            cols = [c.name for c in cur.description]  # type: ignore[union-attr]
+            rows = await cur.fetchall()
+        return [dict(zip(cols, r, strict=False)) for r in rows]
+
+    async def get_quiz(self, quiz_id: uuid.UUID) -> dict[str, Any] | None:
+        """Return a quiz header, or None if missing/not visible."""
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "SELECT id, notebook_id, title, status FROM quizzes WHERE id = %s",
+                (str(quiz_id),),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                return None
+            cols = [c.name for c in cur.description]  # type: ignore[union-attr]
+        return dict(zip(cols, row, strict=False))
+
+    async def set_quiz_status(self, quiz_id: uuid.UUID, status: str) -> bool:
+        """Update a quiz's status; return True if a row was updated.
+
+        Under RLS the update only affects quizzes the caller created (policy
+        ``quizzes_update_own``), so a False result means missing or not permitted.
+        """
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "UPDATE quizzes SET status = %s, updated_at = now() WHERE id = %s",
+                (status, str(quiz_id)),
+            )
+            return (cur.rowcount or 0) > 0
+
+    async def get_quiz_questions(self, quiz_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Return a quiz's questions WITHOUT the answer key or rubric.
+
+        Deliberately omits ``answer`` and ``rubric`` so the take-quiz endpoint never
+        leaks correct answers to students; grading reads those via the service role.
+        """
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "SELECT id, ordinal, type, stem, options, difficulty_level, needs_review "
+                "FROM questions WHERE quiz_id = %s ORDER BY ordinal",
+                (str(quiz_id),),
+            )
+            cols = [c.name for c in cur.description]  # type: ignore[union-attr]
+            rows = await cur.fetchall()
+        return [dict(zip(cols, r, strict=False)) for r in rows]
+
+    async def create_attempt(self, quiz_id: uuid.UUID, student_id: uuid.UUID) -> dict[str, Any]:
+        """Insert an in-progress attempt for *student_id*; RLS enforces ownership."""
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "INSERT INTO attempts (quiz_id, student_id) VALUES (%s, %s) "
+                "RETURNING id, quiz_id, student_id, status",
+                (str(quiz_id), str(student_id)),
+            )
+            row = await cur.fetchone()
+            cols = [c.name for c in cur.description]  # type: ignore[union-attr]
+        return dict(zip(cols, row, strict=False))  # type: ignore[arg-type]
+
+    async def get_attempt(self, attempt_id: uuid.UUID) -> dict[str, Any] | None:
+        """Return an attempt header visible to the caller (student owner or quiz creator)."""
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "SELECT id, quiz_id, student_id, status FROM attempts WHERE id = %s",
+                (str(attempt_id),),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                return None
+            cols = [c.name for c in cur.description]  # type: ignore[union-attr]
+        return dict(zip(cols, row, strict=False))
+
+    async def submit_answers(
+        self, attempt_id: uuid.UUID, answers: list[tuple[uuid.UUID, dict[str, Any]]]
+    ) -> None:
+        """Persist all answers and flip the attempt to ``submitted`` in one transaction.
+
+        The answer INSERT and the status UPDATE happen together: the RLS answer-insert
+        policy requires the attempt still be owned by the student, and the post-submit
+        guard (0008) blocks later edits once status leaves ``in_progress``.
+        """
+        async with self.db.transaction():
+            for question_id, response in answers:
+                await self.db.execute(
+                    "INSERT INTO answers (attempt_id, question_id, response) "
+                    "VALUES (%s, %s, %s::jsonb) "
+                    "ON CONFLICT (attempt_id, question_id) DO UPDATE SET response = EXCLUDED.response",
+                    (str(attempt_id), str(question_id), json.dumps(response)),
+                )
+            await self.db.execute(
+                "UPDATE attempts SET status = 'submitted', submitted_at = now() WHERE id = %s",
+                (str(attempt_id),),
+            )

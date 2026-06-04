@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+from unittest.mock import AsyncMock, patch
 import uuid
 
+import httpx
 import pytest
 
-from asag.rag.retriever import ChunkResult, reciprocal_rank_fusion
+from asag.rag.retriever import ChunkResult, reciprocal_rank_fusion, retrieve
 
 
 def _chunk(content: str = "text", score: float = 0.0) -> ChunkResult:
@@ -60,3 +63,27 @@ def test_rrf_two_lists_deduplication() -> None:
     shared = _chunk("shared")
     result = reciprocal_rank_fusion([shared], [shared])
     assert len(result) == 1
+
+
+async def test_retrieve_falls_back_to_hybrid_when_reranker_down() -> None:
+    """If the reranker raises an httpx error, retrieve() returns hybrid top-k_final."""
+    candidates = [_chunk(f"doc{i}", score=1.0 / (i + 1)) for i in range(8)]
+
+    rerank_client = AsyncMock()
+    rerank_client.rerank.side_effect = httpx.ConnectError("reranker down")
+
+    async def fake_hybrid(*args: Any, **kwargs: Any) -> list[ChunkResult]:
+        return candidates
+
+    with patch("asag.rag.retriever.hybrid_search", side_effect=fake_hybrid):
+        result = await retrieve(
+            "q",
+            uuid.uuid4(),
+            embed_client=AsyncMock(),
+            rerank_client=rerank_client,
+            pool=AsyncMock(),
+            k_final=5,
+        )
+
+    # Degraded path: top k_final hybrid candidates, in RRF order, no rerank applied.
+    assert [c.content for c in result] == ["doc0", "doc1", "doc2", "doc3", "doc4"]

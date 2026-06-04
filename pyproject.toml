@@ -76,6 +76,9 @@ ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 # Test files: @patch injects mock args that aren't always referenced directly
 "tests/**/*.py" = ["ARG001", "ARG002"]
+# FastAPI uses Depends()/Form()/File() as argument defaults by design; auth
+# dependencies are often present for their side effect (authn/authz), value unused.
+"src/asag/api/**/*.py" = ["B008", "ARG001"]
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true

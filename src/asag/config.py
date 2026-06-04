@@ -19,10 +19,17 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
     supabase_db_url: str = ""
+    # HS256 secret used to verify Supabase access-token JWTs at the API edge.
+    supabase_jwt_secret: str = ""
 
     # Self-hosted inference
     tei_embed_url: str = "http://localhost:8080"
     tei_rerank_url: str = "http://localhost:8081"
+    # Per-request timeout (s) for TEI calls. CPU embedding of a full batch is slow,
+    # so the default is generous; lower it when running TEI on GPU.
+    tei_timeout: float = 120.0
+    # Embedding batch size. Smaller = shorter per-request latency on CPU.
+    tei_embed_batch_size: int = 16
 
     # LLM
     gemini_api_key: str = ""
