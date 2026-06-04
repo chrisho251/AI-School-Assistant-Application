@@ -95,6 +95,7 @@ def sample_slide_png(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.mark.integration
+@pytest.mark.live_llm
 async def test_integ_image_loader_returns_caption(gemini_key: str, sample_chart_png: Path) -> None:
     """Real Gemini Vision call produces a non-empty caption."""
     loader = ImageLoader()
@@ -108,6 +109,7 @@ async def test_integ_image_loader_returns_caption(gemini_key: str, sample_chart_
 
 
 @pytest.mark.integration
+@pytest.mark.live_llm
 async def test_integ_image_loader_slide_caption(gemini_key: str, sample_slide_png: Path) -> None:
     """Gemini Vision captions the slide image correctly."""
     loader = ImageLoader()
@@ -125,6 +127,7 @@ async def test_integ_image_loader_slide_caption(gemini_key: str, sample_slide_pn
 
 
 @pytest.mark.integration
+@pytest.mark.live_llm
 async def test_integ_pdf_and_image_in_same_notebook(
     db_url: str,
     gemini_key: str,

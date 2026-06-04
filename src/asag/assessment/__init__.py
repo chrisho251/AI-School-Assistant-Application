@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
 
+from asag.models.grading import GradeResult
 from asag.models.question import Question, QuestionType
 
 GeneratorFn = Callable[..., Awaitable[list[Question]]]
-GraderFn = Callable[..., Awaitable[Any]]  # concrete signature defined in Day 7
+GraderFn = Callable[..., Awaitable[GradeResult]]
 
 
 @dataclass
