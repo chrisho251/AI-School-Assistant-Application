@@ -418,6 +418,43 @@ class AssessmentApiRepository:
             cols = [c.name for c in cur.description]  # type: ignore[union-attr]
         return dict(zip(cols, row, strict=False))
 
+    async def list_attempts_by_quiz(self, quiz_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Return attempts on a quiz, newest first (RLS limits to the quiz creator).
+
+        The ``attempts_read_own`` policy lets the quiz creator see every attempt on
+        their quiz, so this powers the teacher review list; a student would only see
+        their own attempt.
+        """
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "SELECT id, quiz_id, student_id, status FROM attempts "
+                "WHERE quiz_id = %s ORDER BY started_at DESC",
+                (str(quiz_id),),
+            )
+            cols = [c.name for c in cur.description]  # type: ignore[union-attr]
+            rows = await cur.fetchall()
+        return [dict(zip(cols, r, strict=False)) for r in rows]
+
+    async def get_attempt_answers_review(self, attempt_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Return an attempt's answers joined with question text + all score columns.
+
+        Unlike ``get_quiz_questions`` (student-facing, answer key hidden), this is for
+        the teacher review screen, so it includes every score field. RLS still applies:
+        only the quiz creator (or the owning student) sees the rows.
+        """
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "SELECT a.id AS answer_id, a.question_id, q.ordinal, q.type, q.stem, "
+                "       a.response, a.auto_score, a.auto_feedback, "
+                "       a.teacher_score, a.teacher_feedback, a.final_score "
+                "FROM answers a JOIN questions q ON q.id = a.question_id "
+                "WHERE a.attempt_id = %s ORDER BY q.ordinal",
+                (str(attempt_id),),
+            )
+            cols = [c.name for c in cur.description]  # type: ignore[union-attr]
+            rows = await cur.fetchall()
+        return [dict(zip(cols, r, strict=False)) for r in rows]
+
     async def submit_answers(
         self, attempt_id: uuid.UUID, answers: list[tuple[uuid.UUID, dict[str, Any]]]
     ) -> None:

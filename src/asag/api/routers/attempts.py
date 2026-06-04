@@ -22,9 +22,15 @@ from asag.api.deps import (
 )
 from asag.assessment.grading import grade_attempt
 from asag.assessment.repository import AssessmentApiRepository
-from asag.assessment.review import finalize_attempt
+from asag.assessment.review import finalize_attempt, override_answer_score
 from asag.core.queue import BackgroundTaskQueue
-from asag.models.api import AttemptOut, AttemptStart, AttemptSubmit
+from asag.models.api import (
+    AnswerReview,
+    AnswerScoreOverride,
+    AttemptOut,
+    AttemptStart,
+    AttemptSubmit,
+)
 
 router = APIRouter(prefix="/attempts", tags=["attempts"])
 
@@ -91,6 +97,52 @@ async def get_attempt(
     if attempt is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Attempt not found")
     return AttemptOut(**attempt)
+
+
+@router.get("/quiz/{quiz_id}", response_model=list[AttemptOut])
+async def list_attempts_for_quiz(
+    quiz_id: uuid.UUID,
+    auth: AuthContext = Depends(require_teacher),
+    db: AsyncConnection = Depends(get_db),
+) -> list[AttemptOut]:
+    """List attempts on a quiz for review (RLS limits to the quiz's creator)."""
+    rows = await AssessmentApiRepository(db).list_attempts_by_quiz(quiz_id)
+    return [AttemptOut(**r) for r in rows]
+
+
+@router.get("/{attempt_id}/answers", response_model=list[AnswerReview])
+async def list_attempt_answers(
+    attempt_id: uuid.UUID,
+    auth: AuthContext = Depends(require_teacher),
+    db: AsyncConnection = Depends(get_db),
+) -> list[AnswerReview]:
+    """Return an attempt's answers with scores for the teacher review screen.
+
+    Teacher-only: this exposes provisional ``auto_score`` / ``teacher_score`` before
+    finalisation, which students must not see (they get their grade only after the
+    teacher finalises — a separate Day 11 student endpoint will gate on that).
+    RLS additionally restricts the rows to the quiz the teacher created.
+    """
+    rows = await AssessmentApiRepository(db).get_attempt_answers_review(attempt_id)
+    return [AnswerReview(**r) for r in rows]
+
+
+@router.patch("/{attempt_id}/answers/{answer_id}/score")
+async def override_score(
+    attempt_id: uuid.UUID,
+    answer_id: uuid.UUID,
+    body: AnswerScoreOverride,
+    auth: AuthContext = Depends(require_teacher),
+    pool: AsyncConnectionPool = Depends(get_pool),
+) -> dict[str, str]:
+    """Override one answer's score; only the quiz creator may call this."""
+    try:
+        await override_answer_score(
+            answer_id, auth.user_id, body.score, pool=pool, feedback=body.feedback
+        )
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc)) from exc
+    return {"status": "ok"}
 
 
 @router.post("/{attempt_id}/finalize")

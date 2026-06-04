@@ -115,3 +115,31 @@ class ProctorEvent(BaseModel):
 
     event_type: str
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+# --------------------------------------------------------------------------- #
+# Teacher review                                                               #
+# --------------------------------------------------------------------------- #
+
+
+class AnswerReview(BaseModel):
+    """One answer with its question and all score columns, for teacher review."""
+
+    answer_id: uuid.UUID
+    question_id: uuid.UUID
+    ordinal: int
+    type: QuestionType
+    stem: str
+    response: dict[str, Any] = Field(default_factory=dict)
+    auto_score: float | None = None
+    auto_feedback: str | None = None
+    teacher_score: float | None = None
+    teacher_feedback: str | None = None
+    final_score: float | None = None
+
+
+class AnswerScoreOverride(BaseModel):
+    """Teacher override for one answer's score (committed at finalisation)."""
+
+    score: float
+    feedback: str | None = None
