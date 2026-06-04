@@ -1,0 +1,23 @@
+---
+marp: true
+theme: default
+paginate: true
+---
+
+<!-- _class: lead -->
+{# Title slide from the deck title; each slide WITH bullets renders as content. #}
+{# Driving off bullet-presence (not slide index) avoids dropping content when    #}
+{# the model omits a dedicated title slide. Bullet-less divider slides are skipped.#}
+# {{ outline.title }}
+
+{% for slide in outline.slides if slide.bullets %}
+---
+
+## {{ slide.title }}
+{% for bullet in slide.bullets %}
+- {{ bullet }}
+{%- endfor %}
+{% if slide.visual_hint %}
+> 🖼️ _Suggested visual:_ {{ slide.visual_hint }}
+{% endif %}
+{% endfor %}
