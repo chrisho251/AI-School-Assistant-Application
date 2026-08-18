@@ -331,5 +331,5 @@ Built as a personal / Master's project. Inspired by [Google NotebookLM](https://
 ---
 
 <div align="center">
-<sub>No license file is included yet — add one before sharing publicly if you want to set usage terms.</sub>
+<sub>Licensed under the <a href="LICENSE">MIT License</a>.</sub>
 </div>
