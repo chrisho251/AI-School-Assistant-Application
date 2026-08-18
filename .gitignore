@@ -46,9 +46,6 @@ logs/
 # Jupyter
 .ipynb_checkpoints/
 
-# Streamlit
-.streamlit/secrets.toml
-
 # Outputs from ingestion / generation
 outputs/
 artifacts/
@@ -78,3 +75,12 @@ model-cache/
 
 # github deploy
 .github
+
+design_handoff_asag_friendly/
+
+# Working folder of raw screenshots; the curated copies live in assets/ (tracked).
+Image/
+
+# The public README is tracked despite the blanket *.md rule above.
+# Leading slash anchors to repo root only — nested READMEs stay ignored.
+!/README.md
