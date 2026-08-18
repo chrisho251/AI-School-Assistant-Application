@@ -1,0 +1,4 @@
+# esbuild ships a platform binary via its install script; allow it to run so
+# Vite can bundle. (pnpm 10+ blocks dependency build scripts by default.)
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,21 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+
+# TS / Vite build artifacts (generated from vite.config.ts)
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Test
+coverage
