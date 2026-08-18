@@ -7,6 +7,7 @@ methods and never write SQL inline (repository pattern, see CLAUDE.md §6.5).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 import json
 import logging
 from typing import Any
@@ -355,7 +356,8 @@ class AssessmentApiRepository:
         """Return a quiz header, or None if missing/not visible."""
         async with self.db.cursor() as cur:
             await cur.execute(
-                "SELECT id, notebook_id, title, status FROM quizzes WHERE id = %s",
+                "SELECT id, notebook_id, title, status, proctoring_config "
+                "FROM quizzes WHERE id = %s",
                 (str(quiz_id),),
             )
             row = await cur.fetchone()
@@ -476,3 +478,33 @@ class AssessmentApiRepository:
                 "UPDATE attempts SET status = 'submitted', submitted_at = now() WHERE id = %s",
                 (str(attempt_id),),
             )
+
+    async def append_proctor_event(
+        self, attempt_id: uuid.UUID, event_type: str, payload: dict[str, Any]
+    ) -> None:
+        """Append one lockdown event (with a server timestamp) to ``proctor_events``.
+
+        Concatenating onto the jsonb array in SQL keeps each report atomic, so
+        rapid-fire events from the same attempt never clobber one another. The
+        attempts UPDATE policy (0008) restricts the row to the owning student.
+        """
+        event = {
+            "type": event_type,
+            "payload": payload,
+            "at": datetime.now(tz=UTC).isoformat(),
+        }
+        await self.db.execute(
+            "UPDATE attempts SET proctor_events = proctor_events || %s::jsonb WHERE id = %s",
+            (json.dumps([event]), str(attempt_id)),
+        )
+
+    async def get_proctor_events(self, attempt_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Return an attempt's proctor timeline (RLS: owning student or quiz creator)."""
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                "SELECT proctor_events FROM attempts WHERE id = %s", (str(attempt_id),)
+            )
+            row = await cur.fetchone()
+        if row is None or not isinstance(row[0], list):
+            return []
+        return row[0]

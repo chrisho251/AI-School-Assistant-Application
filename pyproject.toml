@@ -41,9 +41,7 @@ api = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "sse-starlette>=2.1",
-]
-ui = [
-    "streamlit>=1.39",
+    "python-multipart>=0.0.9",
 ]
 dev = [
     "pytest>=9.0",
@@ -85,9 +83,7 @@ force-sort-within-sections = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# "ui" on the path so UI helper modules import as `lib.*` (matching how Streamlit
-# resolves them at runtime, where it puts the entry script's dir on sys.path[0]).
-pythonpath = [".", "ui"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "-v --strict-markers"
 markers = [

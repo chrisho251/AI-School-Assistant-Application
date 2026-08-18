@@ -29,6 +29,11 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO asag_app;
 -- Function execution (needed for current_user_id(), current_org_id() helpers)
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO asag_app;
 
--- Allow postgres (the connection user) to SET ROLE asag_app.
--- In Supabase's managed environment, SET ROLE requires explicit membership.
-GRANT asag_app TO postgres;
+-- Allow the connection/login role to SET ROLE asag_app.
+-- SET ROLE requires explicit membership; grant to whichever role applied this
+-- migration (``postgres`` on Supabase, ``asag`` on the local docker Postgres).
+DO $$
+BEGIN
+    EXECUTE format('GRANT asag_app TO %I', current_user);
+END;
+$$;

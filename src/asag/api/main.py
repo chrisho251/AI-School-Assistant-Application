@@ -10,14 +10,22 @@ DB-backed routes will then fail fast at request time.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import logging
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from asag.api.routers import attempts, chat, notebooks, quizzes, sources
+# psycopg's async pool needs the SelectorEventLoop; uvicorn defaults to the
+# ProactorEventLoop on Windows, which psycopg does not support. Set the policy at
+# import time so it lands before uvicorn creates its loop.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+from asag.api.routers import attempts, chat, notebooks, proctor, quizzes, sources
 from asag.config import ConfigError, get_settings
 from asag.core.db import create_pool
 from asag.core.embeddings import EmbeddingClient
@@ -59,7 +67,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="ASAG API", version="0.1.0", lifespan=lifespan)
 
-# Streamlit UI (Day 10+) runs on a different origin; allow it during the POC.
+# The React frontend (Vite dev server on :5173) runs on a different origin; allow
+# it during the POC. In dev the Vite proxy forwards /api → :8000, so CORS is a
+# fallback for direct cross-origin calls.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -72,6 +82,7 @@ app.include_router(sources.router)
 app.include_router(chat.router)
 app.include_router(quizzes.router)
 app.include_router(attempts.router)
+app.include_router(proctor.router)
 
 
 @app.get("/health", tags=["meta"])
